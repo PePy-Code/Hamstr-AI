@@ -278,6 +278,10 @@ public struct HomeView: View {
 
 private struct ActivityLaunchPlaceholderView: View {
     let activity: Activity
+    private static let restrictedRequestTokens = [
+        "resuelve", "hazme la tarea", "haz la tarea",
+        "dame la respuesta", "responde por mí", "hazlo por mí", "solve"
+    ]
 
     @Environment(\.dismiss) private var dismiss
     @State private var hasLoaded = false
@@ -556,11 +560,7 @@ private struct ActivityLaunchPlaceholderView: View {
 
     private func isRestrictedRequest(_ text: String) -> Bool {
         let lowered = text.lowercased()
-        let blockedTokens = [
-            "resuelve", "hazme la tarea", "haz la tarea",
-            "dame la respuesta", "responde por mí", "hazlo por mí", "solve"
-        ]
-        return blockedTokens.contains(where: { lowered.contains($0) })
+        return Self.restrictedRequestTokens.contains(where: { lowered.contains($0) })
     }
 
     #if canImport(PhotosUI)

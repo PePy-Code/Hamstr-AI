@@ -83,10 +83,10 @@ public actor MentalTrainerService {
             attempt.incorrectAnswers += 1
         }
 
-        let shouldGameOver = !isCorrect && attempt.correctAnswers >= 5
+        let shouldEndGame = !isCorrect && attempt.correctAnswers >= 5
         let shouldRetry = !isCorrect && attempt.correctAnswers < 5
 
-        if shouldGameOver {
+        if shouldEndGame {
             attempt.endedAt = answeredAt
             attempt.highestGlobalScore = highestGlobalScore
             activeSession = nil
@@ -106,7 +106,7 @@ public actor MentalTrainerService {
             isCorrect: isCorrect,
             correctOptionIndex: question.correctOptionIndex,
             shouldShowRetry: shouldRetry,
-            isGameOver: shouldGameOver
+            isGameOver: shouldEndGame
         )
     }
 
