@@ -245,6 +245,52 @@ func localAgentParserReadsTriviaQuestionsFromJSON() async throws {
     #expect(parsed[1].imageURL != nil)
 }
 
+@Test("Parser local tolera ruido y aplica hardening en trivia")
+func localAgentParserHardensTriviaPayload() async throws {
+    let response = """
+    Aquí tienes el resultado:
+    ```json
+    {
+      "questions": [
+        {
+          "category": "science",
+          "prompt": "¿Cuál es el planeta más grande del sistema solar?",
+          "options": ["Mercurio", "Venus", "Tierra", "Júpiter"],
+          "correctOptionIndex": 3,
+          "imageURL": "https://example.com/jupiter.png"
+        },
+        {
+          "category": "history",
+          "prompt": "¿Año de independencia de México?",
+          "options": ["1810", "1821", "1910"],
+          "correctOptionIndex": 1,
+          "imageURL": "https://example.com/mx.png"
+        },
+        {
+          "category": "popCulture",
+          "prompt": "¿Qué consola lanzó Nintendo en 2006?",
+          "options": ["Wii", "SNES", "N64", "GameCube"],
+          "correctOptionIndex": 0,
+          "imageURL": "javascript:alert(1)"
+        }
+      ]
+    }
+    ```
+    """
+
+    let parsed = LocalAgentResponseParser.parseTriviaQuestions(
+        from: response,
+        categories: TriviaCategory.allCases,
+        limit: 3
+    )
+
+    #expect(parsed.count == 2)
+    #expect(parsed[0].category == .science)
+    #expect(parsed[0].imageURL != nil)
+    #expect(parsed[1].category == .popCulture)
+    #expect(parsed[1].imageURL == nil)
+}
+
 private struct MockIntelligence: AppleIntelligenceProviding {
     let questionCount: Int
 
