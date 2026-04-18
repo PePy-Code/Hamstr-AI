@@ -20,11 +20,12 @@ Entrenador académico para iOS con el propósito de apoyar a estudiantes con pro
 ## Ejecutar en simulador de Xcode
 
 1. Abre el paquete con Xcode (`File > Open...`) apuntando a este repositorio.
-2. Selecciona el esquema **AcademicTraineriOS** (target de app iOS con bundle identifier).
+2. Selecciona el esquema **AcademicTraineriOS** (si tu Xcode soporta `iOSApplication` en SwiftPM).
 3. Elige un simulador iOS (por ejemplo iPhone 16).
 4. Ejecuta con `Run` (⌘R).
 
-> Si no aparece `AcademicTraineriOS`, usa `File > Packages > Reset Package Caches` y vuelve a abrir el proyecto.
+> Si no aparece `AcademicTraineriOS`, usa `File > Packages > Reset Package Caches` y vuelve a abrir el proyecto.  
+> En versiones de Xcode/SwiftPM que no soportan `iOSApplication`, usa el esquema `AcademicTrainerApp`.
 
 La app inicia en `HomeView` y desde ahí puedes probar:
 - botón rápido `+` del menú principal,

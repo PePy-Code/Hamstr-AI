@@ -15,7 +15,7 @@ var products: [Product] = [
     ),
 ]
 
-#if os(macOS)
+#if os(macOS) && compiler(>=6.3)
 products.append(
     .iOSApplication(
         name: "AcademicTraineriOS",
