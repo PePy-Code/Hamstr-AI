@@ -3,23 +3,40 @@
 
 import PackageDescription
 
+var products: [Product] = [
+    // Products define the executables and libraries a package produces, making them visible to other packages.
+    .library(
+        name: "AI---AT---Swift-PRELIMINAR-",
+        targets: ["AI---AT---Swift-PRELIMINAR-"]
+    ),
+    .executable(
+        name: "AcademicTrainerApp",
+        targets: ["AcademicTrainerApp"]
+    ),
+]
+
+#if os(macOS)
+products.append(
+    .iOSApplication(
+        name: "AcademicTraineriOS",
+        targets: ["AcademicTrainerApp"],
+        bundleIdentifier: "com.pepy.academictrainer",
+        teamIdentifier: "",
+        displayVersion: "1.0",
+        bundleVersion: "1",
+        iconAssetName: nil,
+        accentColorAssetName: nil
+    )
+)
+#endif
+
 let package = Package(
     name: "AI---AT---Swift-PRELIMINAR-",
     platforms: [
         .iOS(.v17),
         .macOS(.v14)
     ],
-    products: [
-        // Products define the executables and libraries a package produces, making them visible to other packages.
-        .library(
-            name: "AI---AT---Swift-PRELIMINAR-",
-            targets: ["AI---AT---Swift-PRELIMINAR-"]
-        ),
-        .executable(
-            name: "AcademicTrainerApp",
-            targets: ["AcademicTrainerApp"]
-        ),
-    ],
+    products: products,
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
         // Targets can depend on other targets in this package and products from dependencies.
