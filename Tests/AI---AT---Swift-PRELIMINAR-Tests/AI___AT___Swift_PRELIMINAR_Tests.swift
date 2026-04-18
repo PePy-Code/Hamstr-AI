@@ -140,6 +140,62 @@ func notificationPlannerMessages() async throws {
     #expect(withActivities.body.contains("entrenamiento rápido"))
 }
 
+@Test("Parser local extrae material con fuentes desde JSON")
+func localAgentParserReadsSupportMaterialWithSources() async throws {
+    let response = """
+    ```json
+    {
+      "material": [
+        { "point": "Revisa conceptos base de derivadas", "source": "https://es.khanacademy.org/math" },
+        { "point": "Practica 10 ejercicios guiados", "source": "https://www.geogebra.org/" },
+        { "point": "Resume errores frecuentes en una hoja", "source": "https://openstax.org/" }
+      ]
+    }
+    ```
+    """
+
+    let parsed = LocalAgentResponseParser.parseSupportMaterial(from: response, limit: 3)
+
+    #expect(parsed.count == 3)
+    #expect(parsed[0].contains("Fuente:"))
+    #expect(parsed[1].contains("geogebra"))
+}
+
+@Test("Parser local extrae preguntas válidas desde JSON")
+func localAgentParserReadsTriviaQuestionsFromJSON() async throws {
+    let response = """
+    {
+      "questions": [
+        {
+          "category": "science",
+          "prompt": "¿Qué planeta es conocido como el planeta rojo?",
+          "options": ["Venus", "Marte", "Júpiter", "Mercurio"],
+          "correctOptionIndex": 1,
+          "imageURL": null
+        },
+        {
+          "category": "pop_culture",
+          "prompt": "¿Qué saga incluye al personaje Frodo?",
+          "options": ["Star Trek", "Harry Potter", "El Señor de los Anillos", "Matrix"],
+          "correctOptionIndex": 2,
+          "imageURL": "https://example.com/frodo.png"
+        }
+      ]
+    }
+    """
+
+    let parsed = LocalAgentResponseParser.parseTriviaQuestions(
+        from: response,
+        categories: TriviaCategory.allCases,
+        limit: 2
+    )
+
+    #expect(parsed.count == 2)
+    #expect(parsed[0].category == .science)
+    #expect(parsed[1].category == .popCulture)
+    #expect(parsed[1].imageURL != nil)
+}
+
 private struct MockIntelligence: AppleIntelligenceProviding {
     let questionCount: Int
 

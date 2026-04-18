@@ -5,7 +5,7 @@ public struct AppleIntelligenceService: AppleIntelligenceProviding {
     private let localAgent: LocalAcademicAgentProviding?
 
     public init(localAgent: LocalAcademicAgentProviding? = nil) {
-        self.localAgent = localAgent
+        self.localAgent = localAgent ?? AppleIntelligenceService.makeDefaultLocalAgent()
     }
 
     public func supportMaterial(for topic: String, type: ActivityType) async throws -> [String] {
@@ -50,6 +50,17 @@ public struct AppleIntelligenceService: AppleIntelligenceProviding {
             categories: validatedCategories,
             difficulty: validatedDifficulty
         )
+    }
+}
+
+private extension AppleIntelligenceService {
+    static func makeDefaultLocalAgent() -> LocalAcademicAgentProviding? {
+        #if canImport(FoundationModels)
+        if #available(iOS 18.0, macOS 15.0, *) {
+            return FoundationModelsLocalAgent()
+        }
+        #endif
+        return nil
     }
 }
 
