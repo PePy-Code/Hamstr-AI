@@ -2,9 +2,6 @@
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
-#if canImport(AppleProductTypes)
-import AppleProductTypes
-#endif
 
 var products: [Product] = [
     // Products define the executables and libraries a package produces, making them visible to other packages.
@@ -17,23 +14,6 @@ var products: [Product] = [
         targets: ["AcademicTrainerApp"]
     ),
 ]
-
-#if canImport(AppleProductTypes)
-products.append(
-    .iOSApplication(
-        name: "AcademicTraineriOS",
-        targets: ["AcademicTrainerApp"],
-        bundleIdentifier: "com.pepy.academictrainer",
-        teamIdentifier: "",
-        displayVersion: "1.0",
-        bundleVersion: "1",
-        iconAssetName: nil,
-        accentColorAssetName: nil,
-        supportedDeviceFamilies: [.phone, .pad],
-        supportedInterfaceOrientations: [.portrait, .landscapeLeft, .landscapeRight]
-    )
-)
-#endif
 
 let package = Package(
     name: "AI---AT---Swift-PRELIMINAR-",
