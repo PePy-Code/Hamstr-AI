@@ -1,5 +1,8 @@
 #if canImport(SwiftUI)
 import SwiftUI
+#if canImport(PhotosUI)
+import PhotosUI
+#endif
 
 public struct HomeView: View {
     @State private var todayActivities: [Activity] = []
@@ -10,6 +13,7 @@ public struct HomeView: View {
     @State private var activeActivity: Activity?
     @State private var editingActivity: Activity?
     @State private var openWeeklyAgenda = false
+    @State private var showQuickAddActivity = false
     private let agendaService = AgendaService(persistence: LocalAgendaDatabase())
     private let streakEngine = StreakEngine()
     private let calendar = Calendar.current
@@ -57,6 +61,20 @@ public struct HomeView: View {
                     )
 
                     menuAgendaTable
+
+                    HStack {
+                        Spacer()
+                        Button {
+                            showQuickAddActivity = true
+                        } label: {
+                            Image(systemName: "plus")
+                                .font(.headline)
+                                .frame(width: 36, height: 36)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .clipShape(Circle())
+                        .accessibilityLabel("Agregar actividad rápida")
+                    }
                 }
                 .padding()
             }
@@ -107,6 +125,14 @@ public struct HomeView: View {
             }
             .navigationDestination(item: $activeActivity) { activity in
                 ActivityLaunchPlaceholderView(activity: activity)
+            }
+            .sheet(isPresented: $showQuickAddActivity) {
+                AddActivitySheet(
+                    agendaService: agendaService,
+                    defaultDate: Date()
+                ) {
+                    Task { await refreshSummary() }
+                }
             }
         }
     }
@@ -253,17 +279,386 @@ public struct HomeView: View {
 private struct ActivityLaunchPlaceholderView: View {
     let activity: Activity
 
+    @Environment(\.dismiss) private var dismiss
+    @State private var hasLoaded = false
+    @State private var messages: [ActivityChatMessage] = []
+    @State private var userInput = ""
+    @State private var finishAlertStep: FinishAlertStep?
+    @State private var streakDays = 0
+    @State private var navigateToTrainer = false
+    @State private var remainingSeconds = 25 * 60
+    @State private var isRunning = false
+    @State private var isWorkPhase = true
+    private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    private let agendaService = AgendaService(persistence: LocalAgendaDatabase())
+    private let intelligence = AppleIntelligenceService()
+    private let calendar = Calendar.current
+    #if canImport(PhotosUI)
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    #endif
+
     var body: some View {
         VStack(spacing: 12) {
-            Text("Pantalla en construcción")
-                .font(.title3.weight(.semibold))
-            Text("Aquí iniciaremos la actividad: \(activity.title)")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+            HStack(spacing: 10) {
+                Button("Finalizar") {
+                    finishAlertStep = .confirmFinish
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button("Pendiente") {
+                    Task { await markPendingAndExit() }
+                }
+                .buttonStyle(.bordered)
+            }
+
+            pomodoroCard
+            chatSection
+            chatComposer
         }
         .padding()
-        .navigationTitle("Inicio de actividad")
+        .navigationTitle("Iniciar actividad")
+        .task {
+            guard !hasLoaded else { return }
+            hasLoaded = true
+            await startSessionAndSeedChat()
+        }
+        .onReceive(ticker) { _ in
+            guard isRunning else { return }
+            if remainingSeconds > 0 {
+                remainingSeconds -= 1
+            } else {
+                isWorkPhase.toggle()
+                remainingSeconds = isWorkPhase ? 25 * 60 : 5 * 60
+                isRunning = true
+            }
+        }
+        .alert(item: $finishAlertStep) { step in
+            switch step {
+            case .confirmFinish:
+                return Alert(
+                    title: Text("¿Seguro que deseas finalizar?"),
+                    message: Text("Actividad: \(activity.title)"),
+                    primaryButton: .destructive(Text("Sí")) {
+                        Task { await completeAndStartFinishFlow() }
+                    },
+                    secondaryButton: .cancel(Text("No"))
+                )
+            case .congrats:
+                return Alert(
+                    title: Text("¡Felicidades!"),
+                    message: Text("Terminaste \(activity.title)."),
+                    dismissButton: .default(Text("Continuar")) {
+                        finishAlertStep = .streak
+                    }
+                )
+            case .streak:
+                return Alert(
+                    title: Text("🔥 Racha"),
+                    message: Text("Llevas una racha de \(streakDays) días."),
+                    dismissButton: .default(Text("Continuar")) {
+                        finishAlertStep = .mentalTrainingPrompt
+                    }
+                )
+            case .mentalTrainingPrompt:
+                return Alert(
+                    title: Text("🐭 Entrenamiento mental"),
+                    message: Text("¿Te gustaría hacer un entrenamiento mental?"),
+                    primaryButton: .default(Text("Sí")) {
+                        navigateToTrainer = true
+                    },
+                    secondaryButton: .cancel(Text("No")) {
+                        dismiss()
+                    }
+                )
+            }
+        }
+        .navigationDestination(isPresented: $navigateToTrainer) {
+            MentalTrainerView()
+        }
+        #if canImport(PhotosUI)
+        .onChange(of: selectedPhotoItem) { _, newValue in
+            guard let newValue else { return }
+            Task { await handleImageAttachment(item: newValue) }
+        }
+        #endif
     }
+
+    private var pomodoroCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Pomodoro")
+                    .font(.headline)
+                Spacer()
+                Text(isWorkPhase ? "Trabajo" : "Descanso")
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(isWorkPhase ? Color.blue.opacity(0.2) : Color.green.opacity(0.2))
+                    .foregroundStyle(isWorkPhase ? .blue : .green)
+                    .clipShape(Capsule())
+            }
+
+            Text(formattedTime(remainingSeconds))
+                .font(.title2.monospacedDigit().weight(.bold))
+
+            HStack(spacing: 10) {
+                Button(isRunning ? "Pausar" : "Iniciar") {
+                    isRunning.toggle()
+                }
+                .buttonStyle(.bordered)
+
+                Button("Reiniciar") {
+                    isRunning = false
+                    isWorkPhase = true
+                    remainingSeconds = 25 * 60
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var chatSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Asistente 🐭")
+                .font(.headline)
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 8) {
+                    ForEach(messages) { message in
+                        HStack {
+                            if message.role == .assistant {
+                                chatBubble(message, alignment: .leading, background: Color(.secondarySystemBackground))
+                                Spacer(minLength: 30)
+                            } else {
+                                Spacer(minLength: 30)
+                                chatBubble(message, alignment: .trailing, background: Color.blue.opacity(0.18))
+                            }
+                        }
+                    }
+                }
+            }
+            .frame(maxHeight: 260)
+        }
+    }
+
+    private var chatComposer: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                #if canImport(PhotosUI)
+                PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                    Image(systemName: "plus.viewfinder")
+                }
+                .buttonStyle(.bordered)
+                #else
+                Button {
+                    Task { await addSimulatedImageAttachment() }
+                } label: {
+                    Image(systemName: "plus.viewfinder")
+                }
+                .buttonStyle(.bordered)
+                #endif
+
+                TextField("Escribe al chatbot...", text: $userInput, axis: .vertical)
+                    .textFieldStyle(.roundedBorder)
+
+                Button("Enviar") {
+                    Task { await sendUserMessage() }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(userInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            Text("La IA no resuelve tareas por ti; solo orienta con apoyo y fuentes.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    @ViewBuilder
+    private func chatBubble(_ message: ActivityChatMessage, alignment: Alignment, background: Color) -> some View {
+        VStack(alignment: alignment == .leading ? .leading : .trailing, spacing: 4) {
+            if message.isImageAttachment {
+                Label("Imagen adjunta", systemImage: "photo")
+                    .font(.caption.weight(.semibold))
+            }
+            Text(message.text)
+                .font(.footnote)
+        }
+        .padding(10)
+        .background(background)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func startSessionAndSeedChat() async {
+        var support: [String] = []
+        if let session = try? await agendaService.startActivity(id: activity.id) {
+            support = session.supportMaterial
+        }
+        if support.isEmpty {
+            support = (try? await intelligence.supportMaterial(for: normalizedTopic, type: activity.type)) ?? []
+        }
+        let intro = initialAssistantMessage(with: support)
+        await MainActor.run {
+            messages = [
+                ActivityChatMessage(role: .assistant, text: intro)
+            ]
+        }
+    }
+
+    private func initialAssistantMessage(with support: [String]) -> String {
+        let header: String
+        switch activity.type {
+        case .task:
+            header = "🐭 ¡Vamos con tu tarea \"\(activity.title)\"! Te comparto apoyo para que la desarrolles con tus propias ideas:"
+        case .study:
+            header = "🐭 ¡Empecemos a estudiar \"\(activity.title)\"! Si quieres, cuéntame más de tu tema y te guío paso a paso."
+        case .other:
+            header = "🐭 Estoy contigo en \"\(activity.title)\". Aquí tienes material para avanzar:"
+        }
+        guard !support.isEmpty else { return header }
+        let bullets = support.map { "• \($0)" }.joined(separator: "\n")
+        return "\(header)\n\(bullets)"
+    }
+
+    private func sendUserMessage() async {
+        let text = userInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+
+        await MainActor.run {
+            messages.append(ActivityChatMessage(role: .user, text: text))
+            userInput = ""
+        }
+
+        let response = await assistantResponse(for: text)
+        await MainActor.run {
+            messages.append(ActivityChatMessage(role: .assistant, text: response))
+        }
+    }
+
+    private func assistantResponse(for text: String) async -> String {
+        let support = (try? await intelligence.supportMaterial(for: normalizedTopic, type: activity.type)) ?? []
+        let bulletText = support.isEmpty ? "" : "\n" + support.map { "• \($0)" }.joined(separator: "\n")
+        if isRestrictedRequest(text) {
+            return "Lo siento compañero, no puedo ayudarte con este tipo de solicitudes. Pero aquí hay algunas fuentes que podrían ayudarte:\(bulletText)"
+        }
+        switch activity.type {
+        case .task:
+            return "Buena pregunta. Para tu tarea de \"\(activity.title)\", te sugiero organizar primero una idea central y luego contrastarla con fuentes confiables.\(bulletText)"
+        case .study:
+            return "Perfecto, sigamos reforzando tu estudio de \"\(activity.title)\". Si quieres, te hago preguntas cortas para practicar.\(bulletText)"
+        case .other:
+            return "Vamos bien. Aquí tienes apoyo para continuar:\(bulletText)"
+        }
+    }
+
+    private func isRestrictedRequest(_ text: String) -> Bool {
+        let lowered = text.lowercased()
+        let blockedTokens = [
+            "resuelve", "resuélveme", "hazme la tarea", "haz la tarea",
+            "dame la respuesta", "responde por mi", "hazlo por mi", "solve"
+        ]
+        return blockedTokens.contains(where: { lowered.contains($0) })
+    }
+
+    #if canImport(PhotosUI)
+    private func handleImageAttachment(item: PhotosPickerItem) async {
+        let data = try? await item.loadTransferable(type: Data.self)
+        let sizeText: String
+        if let data {
+            sizeText = "\(max(data.count / 1024, 1)) KB"
+        } else {
+            sizeText = "sin tamaño"
+        }
+        await MainActor.run {
+            messages.append(ActivityChatMessage(role: .user, text: "Compartí una imagen (\(sizeText)) para revisión.", isImageAttachment: true))
+        }
+        let support = (try? await intelligence.supportMaterial(for: normalizedTopic, type: activity.type)) ?? []
+        let bulletText = support.isEmpty ? "" : "\n" + support.map { "• \($0)" }.joined(separator: "\n")
+        await MainActor.run {
+            messages.append(
+                ActivityChatMessage(
+                    role: .assistant,
+                    text: "Gracias por la imagen. Te doy retroalimentación general y cómo mejorar tu trabajo con estas fuentes:\(bulletText)"
+                )
+            )
+            selectedPhotoItem = nil
+        }
+    }
+    #else
+    private func addSimulatedImageAttachment() async {
+        await MainActor.run {
+            messages.append(ActivityChatMessage(role: .user, text: "Compartí una imagen para revisión.", isImageAttachment: true))
+            messages.append(ActivityChatMessage(role: .assistant, text: "Recibí tu imagen. Puedo darte retroalimentación y fuentes para mejorar tu actividad."))
+        }
+    }
+    #endif
+
+    private func markPendingAndExit() async {
+        _ = await agendaService.markActivityPending(id: activity.id)
+        await MainActor.run {
+            dismiss()
+        }
+    }
+
+    private func completeAndStartFinishFlow() async {
+        _ = await agendaService.completeActivity(id: activity.id)
+        let streak = await computeStreakDays()
+        await MainActor.run {
+            streakDays = streak
+            finishAlertStep = .congrats
+        }
+    }
+
+    private func computeStreakDays() async -> Int {
+        var count = 0
+        var cursor = calendar.startOfDay(for: Date())
+        for _ in 0..<365 {
+            let activities = await agendaService.listActivities(on: cursor, calendar: calendar)
+            guard !activities.isEmpty else { break }
+            let allCompleted = activities.allSatisfy { $0.status == .completed }
+            guard allCompleted else { break }
+            count += 1
+            guard let previous = calendar.date(byAdding: .day, value: -1, to: cursor) else { break }
+            cursor = previous
+        }
+        return count
+    }
+
+    private var normalizedTopic: String {
+        let title = activity.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !title.isEmpty { return title }
+        return activity.topic
+    }
+
+    private func formattedTime(_ totalSeconds: Int) -> String {
+        let minutes = max(totalSeconds, 0) / 60
+        let seconds = max(totalSeconds, 0) % 60
+        return String(format: "%02d:%02d", minutes, seconds)
+    }
+}
+
+private enum FinishAlertStep: String, Identifiable {
+    case confirmFinish
+    case congrats
+    case streak
+    case mentalTrainingPrompt
+
+    var id: String { rawValue }
+}
+
+private struct ActivityChatMessage: Identifiable {
+    enum Role {
+        case user
+        case assistant
+    }
+
+    let id = UUID()
+    let role: Role
+    let text: String
+    var isImageAttachment: Bool = false
 }
 
 private struct ActivityEditSheet: View {
