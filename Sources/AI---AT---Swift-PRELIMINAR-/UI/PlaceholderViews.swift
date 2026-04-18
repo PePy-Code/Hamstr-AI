@@ -3,68 +3,585 @@ import SwiftUI
 
 public struct HomeView: View {
     @State private var todayActivities: [Activity] = []
+    @State private var tomorrowActivities: [Activity] = []
     @State private var streakState = StreakState()
     @State private var hasLoaded = false
-    @State private var reminderNotification: NotificationMessage?
-    @State private var motivationNotification: NotificationMessage?
+    @State private var pendingStartActivity: Activity?
+    @State private var activeActivity: Activity?
+    @State private var editingActivity: Activity?
+    @State private var openWeeklyAgenda = false
     private let agendaService = AgendaService(persistence: LocalAgendaDatabase())
     private let streakEngine = StreakEngine()
-    private let notificationService = AppNotifications.service
+    private let calendar = Calendar.current
 
     public init() {}
 
     public var body: some View {
         NavigationStack {
-            List {
-                Section("Resumen de hoy") {
+            ScrollView {
+                VStack(spacing: 14) {
                     HStack {
-                        Label("Racha actual", systemImage: "flame.fill")
+                        HStack(spacing: 8) {
+                            Text("🔥")
+                            Text("Racha")
+                                .fontWeight(.semibold)
+                            Text("\(streakState.days) días")
+                                .font(.subheadline.weight(.bold))
+                        }
                         Spacer()
-                        Text("\(streakState.days) días")
-                            .fontWeight(.semibold)
+                        NavigationLink {
+                            MentalTrainerView()
+                        } label: {
+                            Label("Trainer", systemImage: "brain.head.profile")
+                        }
+                        .buttonStyle(.borderedProminent)
                     }
-                    if let reminderNotification {
-                        Label(reminderNotification.body, systemImage: "bell.fill")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                    if let motivationNotification {
-                        Label(motivationNotification.body, systemImage: "brain.head.profile")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                    .padding()
+                    .background(Color(.secondarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
 
-                Section("Módulos") {
-                    NavigationLink("Agenda") { AgendaView() }
-                    NavigationLink("Entrenador Mental") { MentalTrainerView() }
+                    HStack(alignment: .top, spacing: 10) {
+                        Text("🐭")
+                            .font(.largeTitle)
+                        Text(petSupportMessage)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .padding()
+                    .background(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color(.separator), lineWidth: 1)
+                    )
+
+                    menuAgendaTable
                 }
+                .padding()
             }
-            .navigationTitle("Entrenador Académico")
+            .navigationTitle("Menú principal")
             .task {
                 guard !hasLoaded else { return }
                 hasLoaded = true
+                await seedInitialActivitiesIfNeeded()
                 await refreshSummary()
             }
             .refreshable {
                 await refreshSummary()
             }
+            .alert(
+                "¿Deseas iniciar esta actividad?",
+                isPresented: Binding(
+                    get: { pendingStartActivity != nil },
+                    set: { newValue in
+                        if !newValue { pendingStartActivity = nil }
+                    }
+                ),
+                presenting: pendingStartActivity
+            ) { activity in
+                Button("No", role: .cancel) {
+                    pendingStartActivity = nil
+                }
+                Button("Sí") {
+                    activeActivity = activity
+                    pendingStartActivity = nil
+                }
+            } message: { activity in
+                Text("Actividad: \(activity.title)")
+            }
+            .sheet(item: $editingActivity) { activity in
+                ActivityEditSheet(
+                    agendaService: agendaService,
+                    activity: activity,
+                    onDidSave: {
+                        Task { await refreshSummary() }
+                    },
+                    onDidDelete: {
+                        Task { await refreshSummary() }
+                    }
+                )
+            }
+            .navigationDestination(isPresented: $openWeeklyAgenda) {
+                WeeklyAgendaView(agendaService: agendaService)
+            }
+            .navigationDestination(item: $activeActivity) { activity in
+                ActivityLaunchPlaceholderView(activity: activity)
+            }
+        }
+    }
+
+    private var menuAgendaTable: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Agenda")
+                .font(.headline)
+            HStack(spacing: 8) {
+                Text("Hora")
+                    .frame(width: 60, alignment: .leading)
+                    .font(.caption.weight(.semibold))
+                Button(action: { openWeeklyAgenda = true }) {
+                    Text("Hoy \(shortDate(Date()))")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .font(.caption.weight(.semibold))
+                }
+                .buttonStyle(.plain)
+                Button(action: { openWeeklyAgenda = true }) {
+                    Text("Mañana \(shortDate(nextDay))")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .font(.caption.weight(.semibold))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.bottom, 4)
+
+            ForEach(0...24, id: \.self) { hour in
+                HStack(spacing: 8) {
+                    Button(action: { openWeeklyAgenda = true }) {
+                        Text(String(format: "%02d:00", hour))
+                            .font(.caption.monospacedDigit())
+                            .frame(width: 60, alignment: .leading)
+                    }
+                    .buttonStyle(.plain)
+                    agendaCell(for: activityAt(hour: hour, in: todayActivities))
+                    agendaCell(for: activityAt(hour: hour, in: tomorrowActivities))
+                }
+                .padding(.vertical, 2)
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    @ViewBuilder
+    private func agendaCell(for activity: Activity?) -> some View {
+        if let activity {
+            Button {
+                pendingStartActivity = activity
+            } label: {
+                Text(activity.title)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(6)
+                    .background(Color(.tertiarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.plain)
+            .onLongPressGesture(minimumDuration: 0.8) {
+                editingActivity = activity
+            }
+        } else {
+            Button(action: { openWeeklyAgenda = true }) {
+                Text("—")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .foregroundStyle(.tertiary)
+            }
+            .buttonStyle(.plain)
         }
     }
 
     private func refreshSummary() async {
-        let activities = await agendaService.listActivities(on: Date())
+        let today = Date()
+        let tomorrow = nextDay
+        let activities = await agendaService.listActivities(on: today)
+        let tomorrowItems = await agendaService.listActivities(on: tomorrow)
         let updated = streakEngine.evaluate(
             current: streakState,
-            input: DailyEvaluationInput(day: Date(), scheduledActivities: activities, validMentalTrainingCompletions: 0)
+            input: DailyEvaluationInput(day: today, scheduledActivities: activities, validMentalTrainingCompletions: 0)
         )
-        let reminder = await notificationService.scheduleDailyReminder(for: activities, on: Date())
-        let motivation = await notificationService.scheduleMentalTrainingMotivation(on: Date(), streakDays: updated.days)
         await MainActor.run {
             self.todayActivities = activities
+            self.tomorrowActivities = tomorrowItems
             self.streakState = updated
-            self.reminderNotification = reminder
-            self.motivationNotification = motivation
+        }
+    }
+
+    private func seedInitialActivitiesIfNeeded() async {
+        let existingToday = await agendaService.listActivities(on: Date())
+        let existingTomorrow = await agendaService.listActivities(on: nextDay)
+        guard existingToday.isEmpty, existingTomorrow.isEmpty else { return }
+
+        let today = Date()
+        let tomorrow = nextDay
+        _ = await agendaService.createActivity(
+            title: "Repaso de matemáticas",
+            topic: "Derivadas",
+            type: .study,
+            scheduledAt: calendar.date(bySettingHour: 9, minute: 0, second: 0, of: today) ?? today
+        )
+        _ = await agendaService.createActivity(
+            title: "Entregar tarea",
+            topic: "Álgebra",
+            type: .task,
+            scheduledAt: calendar.date(bySettingHour: 18, minute: 0, second: 0, of: today) ?? today
+        )
+        _ = await agendaService.createActivity(
+            title: "Lectura corta",
+            topic: "Historia",
+            type: .other,
+            scheduledAt: calendar.date(bySettingHour: 11, minute: 0, second: 0, of: tomorrow) ?? tomorrow
+        )
+    }
+
+    private var nextDay: Date {
+        calendar.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+    }
+
+    private func activityAt(hour: Int, in activities: [Activity]) -> Activity? {
+        activities
+            .sorted { $0.scheduledAt < $1.scheduledAt }
+            .first { calendar.component(.hour, from: $0.scheduledAt) == hour }
+    }
+
+    private func shortDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd/MM"
+        return formatter.string(from: date)
+    }
+
+    private var petSupportMessage: String {
+        if streakState.days >= 7 {
+            return "¡Lo estás haciendo genial! Tu constancia está dando resultados."
+        }
+        if todayActivities.isEmpty {
+            return "Hoy puedes avanzar un poco con una actividad corta para mantener el ritmo."
+        }
+        return "Paso a paso: inicia una actividad y enfócate unos minutos."
+    }
+}
+
+private struct ActivityLaunchPlaceholderView: View {
+    let activity: Activity
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Text("Pantalla en construcción")
+                .font(.title3.weight(.semibold))
+            Text("Aquí iniciaremos la actividad: \(activity.title)")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .padding()
+        .navigationTitle("Inicio de actividad")
+    }
+}
+
+private struct ActivityEditSheet: View {
+    let agendaService: AgendaService
+    let activity: Activity
+    let onDidSave: () -> Void
+    let onDidDelete: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var title: String
+    @State private var topic: String
+    @State private var typeRawValue: String
+    @State private var scheduledAt: Date
+
+    init(
+        agendaService: AgendaService,
+        activity: Activity,
+        onDidSave: @escaping () -> Void,
+        onDidDelete: @escaping () -> Void
+    ) {
+        self.agendaService = agendaService
+        self.activity = activity
+        self.onDidSave = onDidSave
+        self.onDidDelete = onDidDelete
+        _title = State(initialValue: activity.title)
+        _topic = State(initialValue: activity.topic)
+        _typeRawValue = State(initialValue: activity.type.rawValue)
+        _scheduledAt = State(initialValue: activity.scheduledAt)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Editar actividad") {
+                    TextField("Nombre", text: $title)
+                    TextField("Tema", text: $topic)
+                    Picker("Tipo", selection: $typeRawValue) {
+                        ForEach(ActivityType.allCases, id: \.rawValue) { type in
+                            Text(typeLabel(type)).tag(type.rawValue)
+                        }
+                    }
+                    DatePicker("Fecha y hora", selection: $scheduledAt, displayedComponents: [.date, .hourAndMinute])
+                }
+                Section {
+                    Button("Guardar cambios") {
+                        Task { await save() }
+                    }
+                    Button("Eliminar actividad", role: .destructive) {
+                        Task { await delete() }
+                    }
+                }
+            }
+            .navigationTitle("Editar")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cerrar") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private func save() async {
+        var updated = activity
+        updated.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        updated.topic = topic.trimmingCharacters(in: .whitespacesAndNewlines)
+        updated.type = ActivityType(rawValue: typeRawValue) ?? .study
+        updated.scheduledAt = scheduledAt
+        guard !updated.title.isEmpty, !updated.topic.isEmpty else { return }
+        _ = await agendaService.updateActivity(updated)
+        await MainActor.run {
+            onDidSave()
+            dismiss()
+        }
+    }
+
+    private func delete() async {
+        _ = await agendaService.deleteActivity(id: activity.id)
+        await MainActor.run {
+            onDidDelete()
+            dismiss()
+        }
+    }
+
+    private func typeLabel(_ type: ActivityType) -> String {
+        switch type {
+        case .task: "Tarea"
+        case .study: "Estudio"
+        case .other: "Otro"
+        }
+    }
+}
+
+private struct WeeklyAgendaView: View {
+    let agendaService: AgendaService
+
+    @State private var weekStart: Date
+    @State private var weekActivities: [Activity] = []
+    @State private var showAddActivity = false
+    private let calendar = Calendar.current
+
+    init(agendaService: AgendaService) {
+        self.agendaService = agendaService
+        _weekStart = State(initialValue: Self.normalizedStartOfWeek(from: Date(), calendar: .current))
+    }
+
+    var body: some View {
+        VStack(spacing: 10) {
+            HStack {
+                Button {
+                    moveWeek(by: -1)
+                } label: {
+                    Image(systemName: "triangle.fill")
+                }
+                .buttonStyle(.bordered)
+
+                Spacer()
+                Text(weekTitle)
+                    .font(.headline)
+                Spacer()
+
+                Button {
+                    moveWeek(by: 1)
+                } label: {
+                    Image(systemName: "triangle.fill")
+                        .rotationEffect(.degrees(180))
+                }
+                .buttonStyle(.bordered)
+            }
+
+            ScrollView([.horizontal, .vertical]) {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 8) {
+                        Text("Hora")
+                            .frame(width: 60, alignment: .leading)
+                            .font(.caption.weight(.semibold))
+                        ForEach(weekDays, id: \.self) { day in
+                            Text(weekdayTitle(day))
+                                .frame(minWidth: 120, alignment: .leading)
+                                .font(.caption.weight(.semibold))
+                        }
+                    }
+
+                    ForEach(0...24, id: \.self) { hour in
+                        HStack(spacing: 8) {
+                            Text(String(format: "%02d:00", hour))
+                                .font(.caption.monospacedDigit())
+                                .frame(width: 60, alignment: .leading)
+                            ForEach(weekDays, id: \.self) { day in
+                                let activities = activities(for: day, hour: hour)
+                                Group {
+                                    if activities.isEmpty {
+                                        Text("—")
+                                            .foregroundStyle(.tertiary)
+                                    } else {
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            ForEach(activities.prefix(2)) { activity in
+                                                Text(activity.title)
+                                                    .lineLimit(1)
+                                            }
+                                        }
+                                        .font(.caption)
+                                    }
+                                }
+                                .frame(minWidth: 120, alignment: .leading)
+                                .padding(.vertical, 4)
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, 4)
+            }
+
+            HStack {
+                Spacer()
+                Button {
+                    showAddActivity = true
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.headline)
+                        .frame(width: 36, height: 36)
+                }
+                .buttonStyle(.borderedProminent)
+                .clipShape(Circle())
+            }
+        }
+        .padding()
+        .navigationTitle("Agenda semanal")
+        .task {
+            await loadWeekActivities()
+        }
+        .sheet(isPresented: $showAddActivity) {
+            AddActivitySheet(
+                agendaService: agendaService,
+                defaultDate: weekStart
+            ) {
+                Task { await loadWeekActivities() }
+            }
+        }
+    }
+
+    private var weekDays: [Date] {
+        (0..<7).compactMap { offset in
+            calendar.date(byAdding: .day, value: offset, to: weekStart)
+        }
+    }
+
+    private var weekTitle: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd MMM"
+        let end = calendar.date(byAdding: .day, value: 6, to: weekStart) ?? weekStart
+        return "\(formatter.string(from: weekStart)) - \(formatter.string(from: end))"
+    }
+
+    private func moveWeek(by delta: Int) {
+        if let newStart = calendar.date(byAdding: .day, value: delta * 7, to: weekStart) {
+            weekStart = newStart
+            Task { await loadWeekActivities() }
+        }
+    }
+
+    private func loadWeekActivities() async {
+        var collected: [Activity] = []
+        for day in weekDays {
+            let activities = await agendaService.listActivities(on: day, calendar: calendar)
+            collected.append(contentsOf: activities)
+        }
+        await MainActor.run {
+            self.weekActivities = collected
+        }
+    }
+
+    private func activities(for day: Date, hour: Int) -> [Activity] {
+        weekActivities.filter {
+            calendar.isDate($0.scheduledAt, inSameDayAs: day)
+            && calendar.component(.hour, from: $0.scheduledAt) == hour
+        }
+        .sorted { $0.scheduledAt < $1.scheduledAt }
+    }
+
+    private func weekdayTitle(_ day: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE dd/MM"
+        return formatter.string(from: day)
+    }
+
+    private static func normalizedStartOfWeek(from date: Date, calendar: Calendar) -> Date {
+        let components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
+        return calendar.date(from: components) ?? date
+    }
+}
+
+private struct AddActivitySheet: View {
+    let agendaService: AgendaService
+    let defaultDate: Date
+    let onDidAdd: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var title = ""
+    @State private var topic = ""
+    @State private var typeRawValue = ActivityType.study.rawValue
+    @State private var scheduledAt: Date
+
+    init(
+        agendaService: AgendaService,
+        defaultDate: Date,
+        onDidAdd: @escaping () -> Void
+    ) {
+        self.agendaService = agendaService
+        self.defaultDate = defaultDate
+        self.onDidAdd = onDidAdd
+        _scheduledAt = State(initialValue: defaultDate)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Nueva actividad") {
+                    TextField("Nombre", text: $title)
+                    TextField("Tema", text: $topic)
+                    Picker("Tipo", selection: $typeRawValue) {
+                        ForEach(ActivityType.allCases, id: \.rawValue) { type in
+                            Text(typeLabel(type)).tag(type.rawValue)
+                        }
+                    }
+                    DatePicker("Fecha y hora", selection: $scheduledAt, displayedComponents: [.date, .hourAndMinute])
+                }
+                Section {
+                    Button("Agregar") {
+                        Task { await add() }
+                    }
+                }
+            }
+            .navigationTitle("Agregar")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cerrar") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private func add() async {
+        let cleanedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanedTopic = topic.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanedTitle.isEmpty, !cleanedTopic.isEmpty else { return }
+        let type = ActivityType(rawValue: typeRawValue) ?? .study
+        _ = await agendaService.createActivity(title: cleanedTitle, topic: cleanedTopic, type: type, scheduledAt: scheduledAt)
+        await MainActor.run {
+            onDidAdd()
+            dismiss()
+        }
+    }
+
+    private func typeLabel(_ type: ActivityType) -> String {
+        switch type {
+        case .task: "Tarea"
+        case .study: "Estudio"
+        case .other: "Otro"
         }
     }
 }
