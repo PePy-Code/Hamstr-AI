@@ -51,6 +51,55 @@ func streakDoesNotUseMentalTrainerWhenCompletionsAreUnderThreshold() async throw
     #expect(updated.reason == .incompleteDay)
 }
 
+@Test("Streak no se duplica al evaluar el mismo día más de una vez")
+func streakDoesNotIncrementTwiceOnSameDay() async throws {
+    let engine = StreakEngine(calendar: Calendar(identifier: .gregorian))
+    let day = Date(timeIntervalSince1970: 1_710_172_800)
+    let current = StreakState(days: 3, lastValidatedDay: day, reason: .allScheduledActivitiesCompleted)
+    let activities = [
+        Activity(title: "Repaso", topic: "Álgebra", type: .study, status: .completed, scheduledAt: day)
+    ]
+
+    let updated = engine.evaluate(
+        current: current,
+        input: DailyEvaluationInput(day: day, scheduledActivities: activities, validMentalTrainingCompletions: 0)
+    )
+
+    #expect(updated.days == 3)
+    #expect(updated.reason == .allScheduledActivitiesCompleted)
+}
+
+@Test("Streak permite continuidad combinando día con agenda y día de trainer válido")
+func streakSupportsMixedValidDays() async throws {
+    let calendar = Calendar(identifier: .gregorian)
+    let engine = StreakEngine(calendar: calendar)
+    let dayOne = Date(timeIntervalSince1970: 1_710_086_400)
+    let dayTwo = dayOne.addingTimeInterval(86_400)
+
+    let dayOneState = engine.evaluate(
+        current: StreakState(),
+        input: DailyEvaluationInput(
+            day: dayOne,
+            scheduledActivities: [
+                Activity(title: "Tarea", topic: "Tema", type: .task, status: .completed, scheduledAt: dayOne)
+            ],
+            validMentalTrainingCompletions: 0
+        )
+    )
+    let dayTwoState = engine.evaluate(
+        current: dayOneState,
+        input: DailyEvaluationInput(
+            day: dayTwo,
+            scheduledActivities: [],
+            validMentalTrainingCompletions: 5
+        )
+    )
+
+    #expect(dayOneState.days == 1)
+    #expect(dayTwoState.days == 2)
+    #expect(dayTwoState.reason == .mentalTrainingOnNoAgendaDay)
+}
+
 @Test("Inicio de tarea devuelve apoyo y sesión pomodoro")
 func agendaStartTaskReturnsSupportMaterial() async throws {
     let agenda = AgendaService(intelligence: MockIntelligence())

@@ -18,7 +18,6 @@ public struct HomeView: View {
     @State private var openWeeklyAgenda = false
     @State private var showQuickAddActivity = false
     private let agendaService = AgendaService(persistence: LocalAgendaDatabase())
-    private let streakEngine = StreakEngine()
     private let calendar = Calendar.current
 
     public init() {}
@@ -126,9 +125,6 @@ public struct HomeView: View {
                     activity: activity,
                     onDidSave: {
                         Task { await refreshSummary() }
-                    },
-                    onDidDelete: {
-                        Task { await refreshSummary() }
                     }
                 )
             }
@@ -216,7 +212,7 @@ public struct HomeView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             .buttonStyle(.plain)
-            .onLongPressGesture(minimumDuration: 3) {
+            .onLongPressGesture(minimumDuration: 0.5) {
                 editingActivity = activity
             }
         } else {
@@ -234,20 +230,30 @@ public struct HomeView: View {
         let tomorrow = nextDay
         let activities = await agendaService.listActivities(on: today)
         let tomorrowItems = await agendaService.listActivities(on: tomorrow)
-        let validMentalTrainingCompletions = MentalTrainingStreakStore.completionCount(on: today, calendar: calendar)
-        let updated = streakEngine.evaluate(
-            current: streakState,
-            input: DailyEvaluationInput(
-                day: today,
-                scheduledActivities: activities,
-                validMentalTrainingCompletions: validMentalTrainingCompletions
-            )
-        )
+        let updatedStreakDays = await computeCurrentStreakDays(endingOn: today)
         await MainActor.run {
             self.todayActivities = activities
             self.tomorrowActivities = tomorrowItems
-            self.streakState = updated
+            self.streakState = StreakState(days: updatedStreakDays, lastValidatedDay: calendar.startOfDay(for: today), reason: .incompleteDay)
         }
+    }
+
+    private func computeCurrentStreakDays(endingOn day: Date) async -> Int {
+        var count = 0
+        var cursor = calendar.startOfDay(for: day)
+        for _ in 0..<365 {
+            let activities = await agendaService.listActivities(on: cursor, calendar: calendar)
+            let completions = MentalTrainingStreakStore.completionCount(on: cursor, calendar: calendar)
+            let hasActivities = !activities.isEmpty
+            let validDay = hasActivities
+                ? activities.allSatisfy { $0.status == .completed }
+                : completions >= 5
+            guard validDay else { break }
+            count += 1
+            guard let previous = calendar.date(byAdding: .day, value: -1, to: cursor) else { break }
+            cursor = previous
+        }
+        return count
     }
 
     private func seedInitialActivitiesIfNeeded() async {
@@ -337,6 +343,7 @@ private struct ActivityLaunchPlaceholderView: View {
     @State private var navigateToTrainer = false
     @State private var navigateToTrainerAfterStreak = false
     @State private var shouldShowStreakPopup = false
+    @State private var isFinishing = false
     @State private var pomodoroTransitionAlert: PomodoroTransitionAlert?
     @State private var remainingSeconds = 25 * 60
     @State private var isRunning = true
@@ -368,6 +375,7 @@ private struct ActivityLaunchPlaceholderView: View {
         }
         .padding()
         .navigationTitle("Iniciar actividad")
+        .navigationBarBackButtonHidden(true)
         .task {
             guard !hasLoaded else { return }
             hasLoaded = true
@@ -674,7 +682,17 @@ private struct ActivityLaunchPlaceholderView: View {
     }
 
     private func completeAndStartFinishFlow() async {
-        _ = await agendaService.completeActivity(id: activity.id)
+        guard !isFinishing else { return }
+        await MainActor.run {
+            isFinishing = true
+        }
+        let didComplete = await agendaService.completeActivity(id: activity.id)
+        guard didComplete else {
+            await MainActor.run {
+                isFinishing = false
+            }
+            return
+        }
         let todaysActivities = await agendaService.listActivities(on: Date(), calendar: calendar)
         let shouldShowStreak = !todaysActivities.isEmpty && todaysActivities.allSatisfy { $0.status == .completed }
         let streak = shouldShowStreak ? await computeStreakDays() : 0
@@ -683,6 +701,7 @@ private struct ActivityLaunchPlaceholderView: View {
             shouldShowStreakPopup = shouldShowStreak
             streakDays = streak
             finishAlertStep = .congrats
+            isFinishing = false
         }
     }
 
@@ -691,9 +710,12 @@ private struct ActivityLaunchPlaceholderView: View {
         var cursor = calendar.startOfDay(for: Date())
         for _ in 0..<365 {
             let activities = await agendaService.listActivities(on: cursor, calendar: calendar)
-            guard !activities.isEmpty else { break }
-            let allCompleted = activities.allSatisfy { $0.status == .completed }
-            guard allCompleted else { break }
+            let completions = MentalTrainingStreakStore.completionCount(on: cursor, calendar: calendar)
+            let hasActivities = !activities.isEmpty
+            let validDay = hasActivities
+                ? activities.allSatisfy { $0.status == .completed }
+                : completions >= 5
+            guard validDay else { break }
             count += 1
             guard let previous = calendar.date(byAdding: .day, value: -1, to: cursor) else { break }
             cursor = previous
@@ -749,7 +771,6 @@ private struct ActivityEditSheet: View {
     let agendaService: AgendaService
     let activity: Activity
     let onDidSave: () -> Void
-    let onDidDelete: () -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var title: String
@@ -760,13 +781,11 @@ private struct ActivityEditSheet: View {
     init(
         agendaService: AgendaService,
         activity: Activity,
-        onDidSave: @escaping () -> Void,
-        onDidDelete: @escaping () -> Void
+        onDidSave: @escaping () -> Void
     ) {
         self.agendaService = agendaService
         self.activity = activity
         self.onDidSave = onDidSave
-        self.onDidDelete = onDidDelete
         _title = State(initialValue: activity.title)
         _topic = State(initialValue: activity.topic)
         _typeRawValue = State(initialValue: activity.type.rawValue)
@@ -776,7 +795,7 @@ private struct ActivityEditSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Editar actividad") {
+                Section("Editar valores de actividad") {
                     TextField("Nombre", text: $title)
                     TextField("Tema", text: $topic)
                     Picker("Tipo", selection: $typeRawValue) {
@@ -790,12 +809,9 @@ private struct ActivityEditSheet: View {
                     Button("Guardar cambios") {
                         Task { await save() }
                     }
-                    Button("Eliminar actividad", role: .destructive) {
-                        Task { await delete() }
-                    }
                 }
             }
-            .navigationTitle("Editar")
+            .navigationTitle("Editar actividad")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cerrar") { dismiss() }
@@ -814,14 +830,6 @@ private struct ActivityEditSheet: View {
         _ = await agendaService.updateActivity(updated)
         await MainActor.run {
             onDidSave()
-            dismiss()
-        }
-    }
-
-    private func delete() async {
-        _ = await agendaService.deleteActivity(id: activity.id)
-        await MainActor.run {
-            onDidDelete()
             dismiss()
         }
     }
@@ -908,7 +916,7 @@ private struct WeeklyAgendaView: View {
                                                     .foregroundStyle(statusColor(for: activity.status))
                                                     .clipShape(Capsule())
                                                     .contentShape(Rectangle())
-                                                    .onLongPressGesture(minimumDuration: 3) {
+                                                    .onLongPressGesture(minimumDuration: 0.5) {
                                                         editingActivity = activity
                                                     }
                                             }
@@ -956,9 +964,6 @@ private struct WeeklyAgendaView: View {
                 agendaService: agendaService,
                 activity: activity,
                 onDidSave: {
-                    Task { await loadWeekActivities() }
-                },
-                onDidDelete: {
                     Task { await loadWeekActivities() }
                 }
             )
