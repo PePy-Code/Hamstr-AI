@@ -15,10 +15,10 @@ public struct HomeView: View {
     @State private var pendingStartActivity: Activity?
     @State private var activeActivity: Activity?
     @State private var editingActivity: Activity?
+    @State private var suppressTapForActivityID: UUID?
     @State private var openWeeklyAgenda = false
     @State private var showQuickAddActivity = false
     private let agendaService = AgendaService(persistence: LocalAgendaDatabase())
-    private let streakEngine = StreakEngine()
     private let calendar = Calendar.current
 
     public init() {}
@@ -126,9 +126,6 @@ public struct HomeView: View {
                     activity: activity,
                     onDidSave: {
                         Task { await refreshSummary() }
-                    },
-                    onDidDelete: {
-                        Task { await refreshSummary() }
                     }
                 )
             }
@@ -137,6 +134,7 @@ public struct HomeView: View {
             }
             .navigationDestination(item: $activeActivity) { activity in
                 ActivityLaunchPlaceholderView(
+                    agendaService: agendaService,
                     activity: activity,
                     onDidUpdateActivityState: {
                         Task { await refreshSummary() }
@@ -200,6 +198,10 @@ public struct HomeView: View {
     private func agendaCell(for activity: Activity?) -> some View {
         if let activity {
             Button {
+                if suppressTapForActivityID == activity.id {
+                    suppressTapForActivityID = nil
+                    return
+                }
                 pendingStartActivity = activity
             } label: {
                 HStack(spacing: 6) {
@@ -215,7 +217,8 @@ public struct HomeView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             .buttonStyle(.plain)
-            .onLongPressGesture(minimumDuration: 0.8) {
+            .onLongPressGesture(minimumDuration: 0.5) {
+                suppressTapForActivityID = activity.id
                 editingActivity = activity
             }
         } else {
@@ -233,19 +236,16 @@ public struct HomeView: View {
         let tomorrow = nextDay
         let activities = await agendaService.listActivities(on: today)
         let tomorrowItems = await agendaService.listActivities(on: tomorrow)
-        let validMentalTrainingCompletions = MentalTrainingStreakStore.completionCount(on: today, calendar: calendar)
-        let updated = streakEngine.evaluate(
-            current: streakState,
-            input: DailyEvaluationInput(
-                day: today,
-                scheduledActivities: activities,
-                validMentalTrainingCompletions: validMentalTrainingCompletions
-            )
-        )
+        let updatedStreakDays = await StreakComputation.days(endingOn: today, agendaService: agendaService, calendar: calendar)
+        let todayReason = await StreakComputation.validationReason(for: today, agendaService: agendaService, calendar: calendar)
         await MainActor.run {
             self.todayActivities = activities
             self.tomorrowActivities = tomorrowItems
-            self.streakState = updated
+            self.streakState = StreakState(
+                days: updatedStreakDays,
+                lastValidatedDay: updatedStreakDays > 0 ? calendar.startOfDay(for: today) : nil,
+                reason: updatedStreakDays > 0 ? todayReason : .incompleteDay
+            )
         }
     }
 
@@ -319,6 +319,7 @@ public struct HomeView: View {
 }
 
 private struct ActivityLaunchPlaceholderView: View {
+    let agendaService: AgendaService
     let activity: Activity
     let onDidUpdateActivityState: () -> Void
     private static let restrictedRequestTokens = [
@@ -333,13 +334,14 @@ private struct ActivityLaunchPlaceholderView: View {
     @State private var finishAlertStep: FinishAlertStep?
     @State private var streakDays = 0
     @State private var navigateToTrainer = false
+    @State private var navigateToTrainerAfterStreak = false
     @State private var shouldShowStreakPopup = false
+    @State private var isFinishing = false
     @State private var pomodoroTransitionAlert: PomodoroTransitionAlert?
     @State private var remainingSeconds = 25 * 60
     @State private var isRunning = true
     @State private var isWorkPhase = true
     private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-    private let agendaService = AgendaService(persistence: LocalAgendaDatabase())
     private let intelligence = AppleIntelligenceService()
     private let calendar = Calendar.current
     #if canImport(PhotosUI)
@@ -361,11 +363,19 @@ private struct ActivityLaunchPlaceholderView: View {
             }
 
             pomodoroCard
+                .alert(item: $pomodoroTransitionAlert) { alert in
+                    Alert(
+                        title: Text("Pomodoro"),
+                        message: Text(alert.message),
+                        dismissButton: .default(Text("OK"))
+                    )
+                }
             chatSection
             chatComposer
         }
         .padding()
         .navigationTitle("Iniciar actividad")
+        .navigationBarBackButtonHidden(true)
         .task {
             guard !hasLoaded else { return }
             hasLoaded = true
@@ -391,19 +401,36 @@ private struct ActivityLaunchPlaceholderView: View {
             switch step {
             case .confirmFinish:
                 return Alert(
-                    title: Text("¿Seguro que deseas finalizar?"),
-                    message: Text("Actividad: \(activity.title)"),
-                    primaryButton: .destructive(Text("Sí")) {
+                    title: Text("Finalizar actividad"),
+                    message: Text("¿Seguro que quieres finalizar \(activity.title)?"),
+                    primaryButton: .destructive(Text("Finalizar")) {
                         Task { await completeAndStartFinishFlow() }
                     },
-                    secondaryButton: .cancel(Text("No"))
+                    secondaryButton: .cancel(Text("Cancelar"))
                 )
             case .congrats:
                 return Alert(
                     title: Text("¡Felicidades!"),
                     message: Text("Terminaste \(activity.title)."),
                     dismissButton: .default(Text("Continuar")) {
+                        finishAlertStep = .mentalTrainingPrompt
+                    }
+                )
+            case .mentalTrainingPrompt:
+                return Alert(
+                    title: Text("🐭 Entrenamiento mental"),
+                    message: Text("¿Te gustaría hacer un entrenamiento mental?"),
+                    primaryButton: .default(Text("Sí")) {
                         if shouldShowStreakPopup {
+                            navigateToTrainerAfterStreak = true
+                            finishAlertStep = .streak
+                        } else {
+                            navigateToTrainer = true
+                        }
+                    },
+                    secondaryButton: .cancel(Text("No")) {
+                        if shouldShowStreakPopup {
+                            navigateToTrainerAfterStreak = false
                             finishAlertStep = .streak
                         } else {
                             dismiss()
@@ -415,28 +442,15 @@ private struct ActivityLaunchPlaceholderView: View {
                     title: Text("🔥 Racha"),
                     message: Text("Llevas una racha de \(streakDays) días."),
                     dismissButton: .default(Text("Continuar")) {
-                        finishAlertStep = .mentalTrainingPrompt
-                    }
-                )
-            case .mentalTrainingPrompt:
-                return Alert(
-                    title: Text("🐭 Entrenamiento mental"),
-                    message: Text("¿Te gustaría hacer un entrenamiento mental?"),
-                    primaryButton: .default(Text("Sí")) {
-                        navigateToTrainer = true
-                    },
-                    secondaryButton: .cancel(Text("No")) {
-                        dismiss()
+                        if navigateToTrainerAfterStreak {
+                            navigateToTrainerAfterStreak = false
+                            navigateToTrainer = true
+                        } else {
+                            dismiss()
+                        }
                     }
                 )
             }
-        }
-        .alert(item: $pomodoroTransitionAlert) { alert in
-            Alert(
-                title: Text("Pomodoro"),
-                message: Text(alert.message),
-                dismissButton: .default(Text("OK"))
-            )
         }
         .navigationDestination(isPresented: $navigateToTrainer) {
             MentalTrainerView()
@@ -670,31 +684,29 @@ private struct ActivityLaunchPlaceholderView: View {
     }
 
     private func completeAndStartFinishFlow() async {
-        _ = await agendaService.completeActivity(id: activity.id)
+        guard !isFinishing else { return }
+        await MainActor.run {
+            isFinishing = true
+        }
+        let didComplete = await agendaService.completeActivity(id: activity.id)
+        guard didComplete else {
+            await MainActor.run {
+                isFinishing = false
+            }
+            return
+        }
         let todaysActivities = await agendaService.listActivities(on: Date(), calendar: calendar)
         let shouldShowStreak = !todaysActivities.isEmpty && todaysActivities.allSatisfy { $0.status == .completed }
-        let streak = shouldShowStreak ? await computeStreakDays() : 0
+        let streak = shouldShowStreak
+            ? await StreakComputation.days(endingOn: Date(), agendaService: agendaService, calendar: calendar)
+            : 0
         await MainActor.run {
             onDidUpdateActivityState()
             shouldShowStreakPopup = shouldShowStreak
             streakDays = streak
             finishAlertStep = .congrats
+            isFinishing = false
         }
-    }
-
-    private func computeStreakDays() async -> Int {
-        var count = 0
-        var cursor = calendar.startOfDay(for: Date())
-        for _ in 0..<365 {
-            let activities = await agendaService.listActivities(on: cursor, calendar: calendar)
-            guard !activities.isEmpty else { break }
-            let allCompleted = activities.allSatisfy { $0.status == .completed }
-            guard allCompleted else { break }
-            count += 1
-            guard let previous = calendar.date(byAdding: .day, value: -1, to: cursor) else { break }
-            cursor = previous
-        }
-        return count
     }
 
     private var normalizedTopic: String {
@@ -719,8 +731,8 @@ private struct ActivityLaunchPlaceholderView: View {
 private enum FinishAlertStep: String, Identifiable {
     case confirmFinish
     case congrats
-    case streak
     case mentalTrainingPrompt
+    case streak
 
     var id: String { rawValue }
 }
@@ -746,7 +758,6 @@ private struct ActivityEditSheet: View {
     let agendaService: AgendaService
     let activity: Activity
     let onDidSave: () -> Void
-    let onDidDelete: () -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var title: String
@@ -757,13 +768,11 @@ private struct ActivityEditSheet: View {
     init(
         agendaService: AgendaService,
         activity: Activity,
-        onDidSave: @escaping () -> Void,
-        onDidDelete: @escaping () -> Void
+        onDidSave: @escaping () -> Void
     ) {
         self.agendaService = agendaService
         self.activity = activity
         self.onDidSave = onDidSave
-        self.onDidDelete = onDidDelete
         _title = State(initialValue: activity.title)
         _topic = State(initialValue: activity.topic)
         _typeRawValue = State(initialValue: activity.type.rawValue)
@@ -773,7 +782,7 @@ private struct ActivityEditSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Editar actividad") {
+                Section("Editar valores de actividad") {
                     TextField("Nombre", text: $title)
                     TextField("Tema", text: $topic)
                     Picker("Tipo", selection: $typeRawValue) {
@@ -787,12 +796,9 @@ private struct ActivityEditSheet: View {
                     Button("Guardar cambios") {
                         Task { await save() }
                     }
-                    Button("Eliminar actividad", role: .destructive) {
-                        Task { await delete() }
-                    }
                 }
             }
-            .navigationTitle("Editar")
+            .navigationTitle("Editar actividad")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cerrar") { dismiss() }
@@ -811,14 +817,6 @@ private struct ActivityEditSheet: View {
         _ = await agendaService.updateActivity(updated)
         await MainActor.run {
             onDidSave()
-            dismiss()
-        }
-    }
-
-    private func delete() async {
-        _ = await agendaService.deleteActivity(id: activity.id)
-        await MainActor.run {
-            onDidDelete()
             dismiss()
         }
     }
@@ -905,7 +903,7 @@ private struct WeeklyAgendaView: View {
                                                     .foregroundStyle(statusColor(for: activity.status))
                                                     .clipShape(Capsule())
                                                     .contentShape(Rectangle())
-                                                    .onLongPressGesture(minimumDuration: 0.8) {
+                                                    .onLongPressGesture(minimumDuration: 0.5) {
                                                         editingActivity = activity
                                                     }
                                             }
@@ -953,9 +951,6 @@ private struct WeeklyAgendaView: View {
                 agendaService: agendaService,
                 activity: activity,
                 onDidSave: {
-                    Task { await loadWeekActivities() }
-                },
-                onDidDelete: {
                     Task { await loadWeekActivities() }
                 }
             )
@@ -1016,7 +1011,7 @@ private struct WeeklyAgendaView: View {
         case .notStarted:
             return "Por hacer"
         case .failed:
-            return "Fallida"
+            return "No completada"
         case .inProgress:
             return "En progreso"
         }
@@ -1352,7 +1347,7 @@ public struct AgendaView: View {
         case .completed:
             "Finalizado"
         case .failed:
-            "Fallida"
+            "No completada"
         }
     }
 
@@ -1677,7 +1672,9 @@ public struct MentalTrainerView: View {
                 isGameOver = true
                 sessionCompleted = true
                 isLoading = false
-                MentalTrainingStreakStore.registerCompletion(on: Date())
+                if correctAnswers >= 5 {
+                    MentalTrainingStreakStore.registerCompletion(on: Date())
+                }
                 return
             }
 
@@ -1693,7 +1690,9 @@ public struct MentalTrainerView: View {
                 currentQuestion = nil
                 sessionCompleted = true
                 isLoading = false
-                MentalTrainingStreakStore.registerCompletion(on: Date())
+                if correctAnswers >= 5 {
+                    MentalTrainingStreakStore.registerCompletion(on: Date())
+                }
                 if feedbackMessage == nil {
                     feedbackMessage = "Sesión finalizada."
                     feedbackColor = .green
@@ -1726,6 +1725,33 @@ private enum MentalTrainingStreakStore {
         let month = components.month ?? 0
         let date = components.day ?? 0
         return keyPrefix + String(format: "%04d-%02d-%02d", year, month, date)
+    }
+}
+
+private enum StreakComputation {
+    static func days(endingOn day: Date, agendaService: AgendaService, calendar: Calendar) async -> Int {
+        var count = 0
+        var cursor = calendar.startOfDay(for: day)
+        for _ in 0..<365 {
+            let reason = await validationReason(for: cursor, agendaService: agendaService, calendar: calendar)
+            guard reason != .incompleteDay else { break }
+            count += 1
+            guard let previous = calendar.date(byAdding: .day, value: -1, to: cursor) else { break }
+            cursor = previous
+        }
+        return count
+    }
+
+    static func validationReason(for day: Date, agendaService: AgendaService, calendar: Calendar) async -> StreakValidationReason {
+        let activities = await agendaService.listActivities(on: day, calendar: calendar)
+        if !activities.isEmpty {
+            return activities.allSatisfy { $0.status == .completed }
+                ? .allScheduledActivitiesCompleted
+                : .incompleteDay
+        }
+        return MentalTrainingStreakStore.completionCount(on: day, calendar: calendar) >= 5
+            ? .mentalTrainingOnNoAgendaDay
+            : .incompleteDay
     }
 }
 #endif
