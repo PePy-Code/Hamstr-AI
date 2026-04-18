@@ -49,6 +49,20 @@ func agendaStartTaskReturnsSupportMaterial() async throws {
     #expect((session?.supportMaterial.count ?? 0) > 0)
 }
 
+@Test("Actividad puede volver a pendiente desde flujo pomodoro")
+func agendaCanMarkPendingAfterCompletion() async throws {
+    let agenda = AgendaService(intelligence: MockIntelligence())
+    let day = Date(timeIntervalSince1970: 1_710_172_800)
+    let activity = await agenda.createActivity(title: "Repaso", topic: "Álgebra", type: .task, scheduledAt: day)
+
+    _ = await agenda.completeActivity(id: activity.id)
+    let markedPending = await agenda.markActivityPending(id: activity.id)
+    let updated = await agenda.listActivities(on: day).first(where: { $0.id == activity.id })
+
+    #expect(markedPending == true)
+    #expect(updated?.status == .pending)
+}
+
 @Test("Trivia muestra game over al primer fallo después de 5 aciertos")
 func triviaGameOverAfterFiveCorrectAndOneFail() async throws {
     let baseDate = Date(timeIntervalSince1970: 1_710_259_200)
