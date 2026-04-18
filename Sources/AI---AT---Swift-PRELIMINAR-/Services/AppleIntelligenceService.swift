@@ -61,14 +61,13 @@ struct LocalFallbackGenerator {
         return result
     }
 
-    private func questionBank(difficulty: Int) -> [TriviaCategory: [TriviaQuestion]] {
-        let multiplier = max(1, difficulty)
+    private func questionBank(difficulty _: Int) -> [TriviaCategory: [TriviaQuestion]] {
         return [
             .math: [
                 TriviaQuestion(
                     category: .math,
-                    prompt: "¿Cuánto es (5 * \(6 * multiplier)) + 8 - 2?",
-                    options: ["26", "\(36 * multiplier)", "\(30 * multiplier)", "\(20 * multiplier)"],
+                    prompt: "¿Cuánto es (5 * 6) + 8 - 2?",
+                    options: ["26", "36", "30", "20"],
                     correctOptionIndex: 1
                 ),
                 TriviaQuestion(
