@@ -137,6 +137,7 @@ public struct HomeView: View {
             }
             .navigationDestination(item: $activeActivity) { activity in
                 ActivityLaunchPlaceholderView(
+                    agendaService: agendaService,
                     activity: activity,
                     onDidUpdateActivityState: {
                         Task { await refreshSummary() }
@@ -215,7 +216,7 @@ public struct HomeView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             .buttonStyle(.plain)
-            .onLongPressGesture(minimumDuration: 0.8) {
+            .onLongPressGesture(minimumDuration: 3) {
                 editingActivity = activity
             }
         } else {
@@ -319,6 +320,7 @@ public struct HomeView: View {
 }
 
 private struct ActivityLaunchPlaceholderView: View {
+    let agendaService: AgendaService
     let activity: Activity
     let onDidUpdateActivityState: () -> Void
     private static let restrictedRequestTokens = [
@@ -333,13 +335,13 @@ private struct ActivityLaunchPlaceholderView: View {
     @State private var finishAlertStep: FinishAlertStep?
     @State private var streakDays = 0
     @State private var navigateToTrainer = false
+    @State private var navigateToTrainerAfterStreak = false
     @State private var shouldShowStreakPopup = false
     @State private var pomodoroTransitionAlert: PomodoroTransitionAlert?
     @State private var remainingSeconds = 25 * 60
     @State private var isRunning = true
     @State private var isWorkPhase = true
     private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-    private let agendaService = AgendaService(persistence: LocalAgendaDatabase())
     private let intelligence = AppleIntelligenceService()
     private let calendar = Calendar.current
     #if canImport(PhotosUI)
@@ -350,7 +352,7 @@ private struct ActivityLaunchPlaceholderView: View {
         VStack(spacing: 12) {
             HStack(spacing: 10) {
                 Button("Finalizar") {
-                    finishAlertStep = .confirmFinish
+                    Task { await completeAndStartFinishFlow() }
                 }
                 .buttonStyle(.borderedProminent)
 
@@ -389,21 +391,29 @@ private struct ActivityLaunchPlaceholderView: View {
         }
         .alert(item: $finishAlertStep) { step in
             switch step {
-            case .confirmFinish:
-                return Alert(
-                    title: Text("¿Seguro que deseas finalizar?"),
-                    message: Text("Actividad: \(activity.title)"),
-                    primaryButton: .destructive(Text("Sí")) {
-                        Task { await completeAndStartFinishFlow() }
-                    },
-                    secondaryButton: .cancel(Text("No"))
-                )
             case .congrats:
                 return Alert(
                     title: Text("¡Felicidades!"),
                     message: Text("Terminaste \(activity.title)."),
                     dismissButton: .default(Text("Continuar")) {
+                        finishAlertStep = .mentalTrainingPrompt
+                    }
+                )
+            case .mentalTrainingPrompt:
+                return Alert(
+                    title: Text("🐭 Entrenamiento mental"),
+                    message: Text("¿Te gustaría hacer un entrenamiento mental?"),
+                    primaryButton: .default(Text("Sí")) {
                         if shouldShowStreakPopup {
+                            navigateToTrainerAfterStreak = true
+                            finishAlertStep = .streak
+                        } else {
+                            navigateToTrainer = true
+                        }
+                    },
+                    secondaryButton: .cancel(Text("No")) {
+                        if shouldShowStreakPopup {
+                            navigateToTrainerAfterStreak = false
                             finishAlertStep = .streak
                         } else {
                             dismiss()
@@ -415,18 +425,12 @@ private struct ActivityLaunchPlaceholderView: View {
                     title: Text("🔥 Racha"),
                     message: Text("Llevas una racha de \(streakDays) días."),
                     dismissButton: .default(Text("Continuar")) {
-                        finishAlertStep = .mentalTrainingPrompt
-                    }
-                )
-            case .mentalTrainingPrompt:
-                return Alert(
-                    title: Text("🐭 Entrenamiento mental"),
-                    message: Text("¿Te gustaría hacer un entrenamiento mental?"),
-                    primaryButton: .default(Text("Sí")) {
-                        navigateToTrainer = true
-                    },
-                    secondaryButton: .cancel(Text("No")) {
-                        dismiss()
+                        if navigateToTrainerAfterStreak {
+                            navigateToTrainerAfterStreak = false
+                            navigateToTrainer = true
+                        } else {
+                            dismiss()
+                        }
                     }
                 )
             }
@@ -717,10 +721,9 @@ private struct ActivityLaunchPlaceholderView: View {
 }
 
 private enum FinishAlertStep: String, Identifiable {
-    case confirmFinish
     case congrats
-    case streak
     case mentalTrainingPrompt
+    case streak
 
     var id: String { rawValue }
 }
@@ -905,7 +908,7 @@ private struct WeeklyAgendaView: View {
                                                     .foregroundStyle(statusColor(for: activity.status))
                                                     .clipShape(Capsule())
                                                     .contentShape(Rectangle())
-                                                    .onLongPressGesture(minimumDuration: 0.8) {
+                                                    .onLongPressGesture(minimumDuration: 3) {
                                                         editingActivity = activity
                                                     }
                                             }
@@ -1016,7 +1019,7 @@ private struct WeeklyAgendaView: View {
         case .notStarted:
             return "Por hacer"
         case .failed:
-            return "Fallida"
+            return "No completada"
         case .inProgress:
             return "En progreso"
         }
@@ -1352,7 +1355,7 @@ public struct AgendaView: View {
         case .completed:
             "Finalizado"
         case .failed:
-            "Fallida"
+            "No completada"
         }
     }
 
@@ -1677,7 +1680,9 @@ public struct MentalTrainerView: View {
                 isGameOver = true
                 sessionCompleted = true
                 isLoading = false
-                MentalTrainingStreakStore.registerCompletion(on: Date())
+                if correctAnswers >= 5 {
+                    MentalTrainingStreakStore.registerCompletion(on: Date())
+                }
                 return
             }
 
@@ -1693,7 +1698,9 @@ public struct MentalTrainerView: View {
                 currentQuestion = nil
                 sessionCompleted = true
                 isLoading = false
-                MentalTrainingStreakStore.registerCompletion(on: Date())
+                if correctAnswers >= 5 {
+                    MentalTrainingStreakStore.registerCompletion(on: Date())
+                }
                 if feedbackMessage == nil {
                     feedbackMessage = "Sesión finalizada."
                     feedbackColor = .green

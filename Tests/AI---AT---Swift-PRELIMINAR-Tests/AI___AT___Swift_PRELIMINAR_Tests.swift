@@ -21,7 +21,7 @@ func streakIncrementsWhenAllActivitiesComplete() async throws {
     #expect(updated.reason == .allScheduledActivitiesCompleted)
 }
 
-@Test("Streak se mantiene en día sin agenda con entrenamiento mental válido")
+@Test("Streak sube en día sin agenda solo con 5 respuestas correctas")
 func streakUsesMentalTrainerOnNoAgendaDay() async throws {
     let engine = StreakEngine()
     let day = Date(timeIntervalSince1970: 1_710_086_400)
@@ -29,11 +29,26 @@ func streakUsesMentalTrainerOnNoAgendaDay() async throws {
 
     let updated = engine.evaluate(
         current: previous,
-        input: DailyEvaluationInput(day: day, scheduledActivities: [], validMentalTrainingCompletions: 1)
+        input: DailyEvaluationInput(day: day, scheduledActivities: [], validMentalTrainingCompletions: 5)
     )
 
     #expect(updated.days == 5)
     #expect(updated.reason == .mentalTrainingOnNoAgendaDay)
+}
+
+@Test("Streak no sube en día sin agenda con menos de 5 respuestas correctas")
+func streakDoesNotUseMentalTrainerWhenCompletionsAreUnderThreshold() async throws {
+    let engine = StreakEngine()
+    let day = Date(timeIntervalSince1970: 1_710_086_400)
+    let previous = StreakState(days: 4, lastValidatedDay: day.addingTimeInterval(-86_400), reason: .allScheduledActivitiesCompleted)
+
+    let updated = engine.evaluate(
+        current: previous,
+        input: DailyEvaluationInput(day: day, scheduledActivities: [], validMentalTrainingCompletions: 4)
+    )
+
+    #expect(updated.days == 4)
+    #expect(updated.reason == .incompleteDay)
 }
 
 @Test("Inicio de tarea devuelve apoyo y sesión pomodoro")
