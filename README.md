@@ -1,5 +1,5 @@
 # AI---AT---Swift-PRELIMINAR-
-Entrenador académico para IOS con el propósito de apoyar a estudiantes con problemas de atención y TDAH
+Entrenador académico para iOS con el propósito de apoyar a estudiantes con problemas de atención y TDAH
 
 ## Implementación base incluida
 
