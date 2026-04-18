@@ -230,30 +230,17 @@ public struct HomeView: View {
         let tomorrow = nextDay
         let activities = await agendaService.listActivities(on: today)
         let tomorrowItems = await agendaService.listActivities(on: tomorrow)
-        let updatedStreakDays = await computeCurrentStreakDays(endingOn: today)
+        let updatedStreakDays = await StreakComputation.days(endingOn: today, agendaService: agendaService, calendar: calendar)
+        let todayReason = await StreakComputation.validationReason(for: today, agendaService: agendaService, calendar: calendar)
         await MainActor.run {
             self.todayActivities = activities
             self.tomorrowActivities = tomorrowItems
-            self.streakState = StreakState(days: updatedStreakDays, lastValidatedDay: calendar.startOfDay(for: today), reason: .incompleteDay)
+            self.streakState = StreakState(
+                days: updatedStreakDays,
+                lastValidatedDay: updatedStreakDays > 0 ? calendar.startOfDay(for: today) : nil,
+                reason: updatedStreakDays > 0 ? todayReason : .incompleteDay
+            )
         }
-    }
-
-    private func computeCurrentStreakDays(endingOn day: Date) async -> Int {
-        var count = 0
-        var cursor = calendar.startOfDay(for: day)
-        for _ in 0..<365 {
-            let activities = await agendaService.listActivities(on: cursor, calendar: calendar)
-            let completions = MentalTrainingStreakStore.completionCount(on: cursor, calendar: calendar)
-            let hasActivities = !activities.isEmpty
-            let validDay = hasActivities
-                ? activities.allSatisfy { $0.status == .completed }
-                : completions >= 5
-            guard validDay else { break }
-            count += 1
-            guard let previous = calendar.date(byAdding: .day, value: -1, to: cursor) else { break }
-            cursor = previous
-        }
-        return count
     }
 
     private func seedInitialActivitiesIfNeeded() async {
@@ -695,7 +682,9 @@ private struct ActivityLaunchPlaceholderView: View {
         }
         let todaysActivities = await agendaService.listActivities(on: Date(), calendar: calendar)
         let shouldShowStreak = !todaysActivities.isEmpty && todaysActivities.allSatisfy { $0.status == .completed }
-        let streak = shouldShowStreak ? await computeStreakDays() : 0
+        let streak = shouldShowStreak
+            ? await StreakComputation.days(endingOn: Date(), agendaService: agendaService, calendar: calendar)
+            : 0
         await MainActor.run {
             onDidUpdateActivityState()
             shouldShowStreakPopup = shouldShowStreak
@@ -703,24 +692,6 @@ private struct ActivityLaunchPlaceholderView: View {
             finishAlertStep = .congrats
             isFinishing = false
         }
-    }
-
-    private func computeStreakDays() async -> Int {
-        var count = 0
-        var cursor = calendar.startOfDay(for: Date())
-        for _ in 0..<365 {
-            let activities = await agendaService.listActivities(on: cursor, calendar: calendar)
-            let completions = MentalTrainingStreakStore.completionCount(on: cursor, calendar: calendar)
-            let hasActivities = !activities.isEmpty
-            let validDay = hasActivities
-                ? activities.allSatisfy { $0.status == .completed }
-                : completions >= 5
-            guard validDay else { break }
-            count += 1
-            guard let previous = calendar.date(byAdding: .day, value: -1, to: cursor) else { break }
-            cursor = previous
-        }
-        return count
     }
 
     private var normalizedTopic: String {
@@ -1738,6 +1709,33 @@ private enum MentalTrainingStreakStore {
         let month = components.month ?? 0
         let date = components.day ?? 0
         return keyPrefix + String(format: "%04d-%02d-%02d", year, month, date)
+    }
+}
+
+private enum StreakComputation {
+    static func days(endingOn day: Date, agendaService: AgendaService, calendar: Calendar) async -> Int {
+        var count = 0
+        var cursor = calendar.startOfDay(for: day)
+        for _ in 0..<365 {
+            let reason = await validationReason(for: cursor, agendaService: agendaService, calendar: calendar)
+            guard reason != .incompleteDay else { break }
+            count += 1
+            guard let previous = calendar.date(byAdding: .day, value: -1, to: cursor) else { break }
+            cursor = previous
+        }
+        return count
+    }
+
+    static func validationReason(for day: Date, agendaService: AgendaService, calendar: Calendar) async -> StreakValidationReason {
+        let activities = await agendaService.listActivities(on: day, calendar: calendar)
+        if !activities.isEmpty {
+            return activities.allSatisfy { $0.status == .completed }
+                ? .allScheduledActivitiesCompleted
+                : .incompleteDay
+        }
+        return MentalTrainingStreakStore.completionCount(on: day, calendar: calendar) >= 5
+            ? .mentalTrainingOnNoAgendaDay
+            : .incompleteDay
     }
 }
 #endif
