@@ -1708,17 +1708,16 @@ public struct MentalTrainerView: View {
 }
 
 private enum MentalTrainingStreakStore {
-    private static let defaults = UserDefaults.standard
     private static let keyPrefix = "mental-training-completions-"
 
     static func registerCompletion(on day: Date, calendar: Calendar = .current) {
         let key = keyForDay(day, calendar: calendar)
-        let current = defaults.integer(forKey: key)
-        defaults.set(current + 1, forKey: key)
+        let current = UserDefaults.standard.integer(forKey: key)
+        UserDefaults.standard.set(current + 1, forKey: key)
     }
 
     static func completionCount(on day: Date, calendar: Calendar = .current) -> Int {
-        defaults.integer(forKey: keyForDay(day, calendar: calendar))
+        UserDefaults.standard.integer(forKey: keyForDay(day, calendar: calendar))
     }
 
     private static func keyForDay(_ day: Date, calendar: Calendar) -> String {
