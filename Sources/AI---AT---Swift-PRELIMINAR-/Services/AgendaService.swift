@@ -46,6 +46,13 @@ public actor AgendaService {
     }
 
     @discardableResult
+    public func markActivityPending(id: UUID) -> Bool {
+        guard let index = activities.firstIndex(where: { $0.id == id }) else { return false }
+        activities[index].status = .pending
+        return true
+    }
+
+    @discardableResult
     public func deleteActivity(id: UUID) -> Bool {
         let before = activities.count
         activities.removeAll { $0.id == id }
