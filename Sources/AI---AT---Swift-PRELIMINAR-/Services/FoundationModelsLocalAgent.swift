@@ -126,7 +126,7 @@ private struct TriviaQuestionDTO: Decodable {
 #if canImport(FoundationModels)
 import FoundationModels
 
-@available(iOS 18.0, macOS 15.0, *)
+@available(iOS 26.0, macOS 15.0, *)
 public struct FoundationModelsLocalAgent: LocalAcademicAgentProviding {
     public init() {}
 
