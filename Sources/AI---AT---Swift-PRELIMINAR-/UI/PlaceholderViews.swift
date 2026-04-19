@@ -289,8 +289,8 @@ public struct HomeView: View {
                             .frame(width: 60, alignment: .leading)
                     }
                     .buttonStyle(.plain)
-                    agendaCell(for: activityAt(hour: hour, in: todayActivities))
-                    agendaCell(for: activityAt(hour: hour, in: tomorrowActivities))
+                    agendaCell(for: activitiesAt(hour: hour, in: todayActivities))
+                    agendaCell(for: activitiesAt(hour: hour, in: tomorrowActivities))
                 }
                 .padding(.vertical, 2)
             }
@@ -324,37 +324,41 @@ public struct HomeView: View {
     }
 
     @ViewBuilder
-    private func agendaCell(for activity: Activity?) -> some View {
-        if let activity {
-            let isCompleted = activity.status == .completed
-            HStack(spacing: 6) {
-                Button {
-                    pendingStartActivity = activity
-                } label: {
+    private func agendaCell(for activities: [Activity]) -> some View {
+        if !activities.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(activities) { activity in
+                    let isCompleted = activity.status == .completed
                     HStack(spacing: 6) {
-                        Circle()
-                            .fill(statusColor(for: activity.status))
-                            .frame(width: 8, height: 8)
-                        Text(activity.title)
-                            .lineLimit(1)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .padding(6)
-                    .background(statusColor(for: activity.status).opacity(0.2))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                }
-                .buttonStyle(.plain)
-                .disabled(isCompleted)
+                        Button {
+                            pendingStartActivity = activity
+                        } label: {
+                            HStack(spacing: 6) {
+                                Circle()
+                                    .fill(statusColor(for: activity.status))
+                                    .frame(width: 8, height: 8)
+                                Text("\(hourMinute(activity.scheduledAt)) \(activity.title)")
+                                    .lineLimit(1)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .padding(6)
+                            .background(statusColor(for: activity.status).opacity(0.2))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(isCompleted)
 
-                Button {
-                    editingActivity = activity
-                } label: {
-                    Image(systemName: "pencil")
-                        .font(.caption.weight(.semibold))
-                        .padding(6)
+                        Button {
+                            editingActivity = activity
+                        } label: {
+                            Image(systemName: "pencil")
+                                .font(.caption.weight(.semibold))
+                                .padding(6)
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(isCompleted)
+                    }
                 }
-                .buttonStyle(.borderless)
-                .disabled(isCompleted)
             }
         } else {
             Button(action: { openWeeklyAgenda = true }) {
@@ -423,10 +427,18 @@ public struct HomeView: View {
         calendar.date(byAdding: .day, value: 1, to: Date()) ?? Date()
     }
 
-    private func activityAt(hour: Int, in activities: [Activity]) -> Activity? {
+    private func activitiesAt(hour: Int, in activities: [Activity]) -> [Activity] {
         activities
-            .sorted { $0.scheduledAt < $1.scheduledAt }
-            .first { calendar.component(.hour, from: $0.scheduledAt) == hour }
+            .filter { calendar.component(.hour, from: $0.scheduledAt) == hour }
+            .sorted {
+                if $0.scheduledAt != $1.scheduledAt {
+                    return $0.scheduledAt < $1.scheduledAt
+                }
+                if statusSortOrder($0.status) != statusSortOrder($1.status) {
+                    return statusSortOrder($0.status) < statusSortOrder($1.status)
+                }
+                return $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
+            }
     }
 
     private func shortDate(_ date: Date) -> String {
@@ -434,6 +446,28 @@ public struct HomeView: View {
         formatter.dateFormat = "dd/MM"
         formatter.locale = appLocale()
         return formatter.string(from: date)
+    }
+
+    private func hourMinute(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        formatter.locale = appLocale()
+        return formatter.string(from: date)
+    }
+
+    private func statusSortOrder(_ status: ActivityStatus) -> Int {
+        switch status {
+        case .inProgress:
+            return 0
+        case .pending:
+            return 1
+        case .notStarted:
+            return 2
+        case .failed:
+            return 3
+        case .completed:
+            return 4
+        }
     }
 
     private var preferredColorScheme: ColorScheme? {
@@ -1389,6 +1423,8 @@ private struct WeeklyAgendaView: View {
     @State private var weekActivities: [Activity] = []
     @State private var showAddActivity = false
     @State private var editingActivity: Activity?
+    @State private var pendingStartActivity: Activity?
+    @State private var activeActivity: Activity?
     private let calendar = Calendar.current
 
     init(agendaService: AgendaService) {
@@ -1446,19 +1482,32 @@ private struct WeeklyAgendaView: View {
                                             .foregroundStyle(.tertiary)
                                     } else {
                                         VStack(alignment: .leading, spacing: 2) {
-                                            ForEach(activities.prefix(2)) { activity in
-                                                Text("\(activity.title) • \(statusLabel(for: activity.status))")
-                                                    .lineLimit(1)
-                                                    .padding(.horizontal, 6)
-                                                    .padding(.vertical, 3)
-                                                    .background(statusColor(for: activity.status).opacity(0.2))
-                                                    .foregroundStyle(statusColor(for: activity.status))
-                                                    .clipShape(Capsule())
-                                                    .contentShape(Rectangle())
-                                                    .onLongPressGesture(minimumDuration: 0.5) {
-                                                        guard activity.status != .completed else { return }
+                                            ForEach(activities) { activity in
+                                                let isCompleted = activity.status == .completed
+                                                Button {
+                                                    guard !isCompleted else { return }
+                                                    pendingStartActivity = activity
+                                                } label: {
+                                                    Text("\(hourMinute(activity.scheduledAt)) \(activity.title) • \(statusLabel(for: activity.status))")
+                                                        .lineLimit(1)
+                                                        .padding(.horizontal, 6)
+                                                        .padding(.vertical, 3)
+                                                        .background(statusColor(for: activity.status).opacity(0.2))
+                                                        .foregroundStyle(statusColor(for: activity.status))
+                                                        .clipShape(Capsule())
+                                                    }
+                                                .buttonStyle(.plain)
+                                                .disabled(isCompleted)
+                                                .contextMenu {
+                                                    if !isCompleted {
+                                                        Button("Iniciar actividad") {
+                                                            pendingStartActivity = activity
+                                                        }
+                                                    }
+                                                    Button("Editar") {
                                                         editingActivity = activity
                                                     }
+                                                }
                                             }
                                         }
                                         .font(.caption)
@@ -1490,6 +1539,35 @@ private struct WeeklyAgendaView: View {
         .navigationTitle("Agenda semanal")
         .task {
             await loadWeekActivities()
+        }
+        .alert(
+            "¿Deseas iniciar esta actividad?",
+            isPresented: Binding(
+                get: { pendingStartActivity != nil },
+                set: { newValue in
+                    if !newValue { pendingStartActivity = nil }
+                }
+            ),
+            presenting: pendingStartActivity
+        ) { activity in
+            Button("No", role: .cancel) {
+                pendingStartActivity = nil
+            }
+            Button("Sí") {
+                activeActivity = activity
+                pendingStartActivity = nil
+            }
+        } message: { activity in
+            Text("Actividad: \(activity.title)")
+        }
+        .navigationDestination(item: $activeActivity) { activity in
+            ActivityLaunchPlaceholderView(
+                agendaService: agendaService,
+                activity: activity,
+                onDidUpdateActivityState: {
+                    Task { await loadWeekActivities() }
+                }
+            )
         }
         .sheet(isPresented: $showAddActivity) {
             AddActivitySheet(
@@ -1546,7 +1624,15 @@ private struct WeeklyAgendaView: View {
             calendar.isDate($0.scheduledAt, inSameDayAs: day)
             && calendar.component(.hour, from: $0.scheduledAt) == hour
         }
-        .sorted { $0.scheduledAt < $1.scheduledAt }
+        .sorted {
+            if $0.scheduledAt != $1.scheduledAt {
+                return $0.scheduledAt < $1.scheduledAt
+            }
+            if statusSortOrder($0.status) != statusSortOrder($1.status) {
+                return statusSortOrder($0.status) < statusSortOrder($1.status)
+            }
+            return $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
+        }
     }
 
     private func weekdayTitle(_ day: Date) -> String {
@@ -1582,6 +1668,27 @@ private struct WeeklyAgendaView: View {
             return .red
         case .inProgress:
             return .blue
+        }
+    }
+
+    private func hourMinute(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: date)
+    }
+
+    private func statusSortOrder(_ status: ActivityStatus) -> Int {
+        switch status {
+        case .inProgress:
+            return 0
+        case .pending:
+            return 1
+        case .notStarted:
+            return 2
+        case .failed:
+            return 3
+        case .completed:
+            return 4
         }
     }
 
