@@ -173,6 +173,7 @@ public actor MentalTrainerService {
 private extension MentalTrainerService {
     func nextUniqueQuestion(excluding usedFingerprints: Set<String>, batchSize: Int) async throws -> TriviaQuestion {
         let requestedCount = max(batchSize, 3)
+        var fallbackCandidate: TriviaQuestion?
 
         for _ in 0..<maxGenerationRetries {
             let generated = try await intelligence.triviaQuestions(
@@ -182,11 +183,17 @@ private extension MentalTrainerService {
             )
             for candidate in generated.shuffled() {
                 guard candidate.options.count == 4 else { continue }
+                if fallbackCandidate == nil {
+                    fallbackCandidate = candidate
+                }
                 let fingerprint = questionFingerprint(for: candidate)
                 if !usedFingerprints.contains(fingerprint) {
                     return candidate
                 }
             }
+        }
+        if let fallbackCandidate {
+            return fallbackCandidate
         }
         throw MentalTrainerError.unableToGenerateUniqueQuestion
     }

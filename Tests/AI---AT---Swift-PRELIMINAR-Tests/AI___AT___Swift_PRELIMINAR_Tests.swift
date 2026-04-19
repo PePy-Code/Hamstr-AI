@@ -262,6 +262,48 @@ func triviaUsesFifteenSecondTimeout() async throws {
     #expect(validFeedback?.isCorrect == true)
 }
 
+@Test("Trivia finaliza por timeout y conserva aciertos del intento")
+func triviaTimeoutEndsGameAndKeepsAttemptScore() async throws {
+    let baseDate = Date(timeIntervalSince1970: 1_710_259_200)
+    let service = MentalTrainerService(
+        intelligence: MockIntelligence(questionCount: 10),
+        dateProvider: FixedDateProvider(now: baseDate)
+    )
+
+    let session = try await service.startSession(questionCount: 10)
+    _ = try await service.submitAnswer(optionIndex: 0, answeredAt: session.deadline.addingTimeInterval(-1))
+    let active = try #require(await service.activeSession)
+
+    let timeoutFeedback = try await service.submitAnswer(
+        optionIndex: 0,
+        answeredAt: active.deadline.addingTimeInterval(0.1)
+    )
+
+    #expect(timeoutFeedback?.isCorrect == false)
+    #expect(timeoutFeedback?.isGameOver == true)
+    #expect(timeoutFeedback?.currentCorrectAnswers == 1)
+}
+
+@Test("Trivia continúa aunque el proveedor repita preguntas")
+func triviaContinuesWhenProviderRepeatsQuestions() async throws {
+    let baseDate = Date(timeIntervalSince1970: 1_710_259_200)
+    let service = MentalTrainerService(
+        intelligence: DuplicateTriviaIntelligence(),
+        dateProvider: FixedDateProvider(now: baseDate)
+    )
+
+    let started = try await service.startSession(questionCount: 10)
+    let feedback = try await service.submitAnswer(
+        optionIndex: started.questions[0].correctOptionIndex,
+        answeredAt: baseDate.addingTimeInterval(1)
+    )
+    let nextQuestion = await service.currentQuestion()
+
+    #expect(feedback?.isCorrect == true)
+    #expect(feedback?.isGameOver == false)
+    #expect(nextQuestion != nil)
+}
+
 @Test("Notificación cambia según haya actividades o no")
 func notificationPlannerMessages() async throws {
     let planner = NotificationPlanner()
@@ -804,6 +846,37 @@ private struct MockOpenSourceKnowledge: OpenSourceKnowledgeProviding {
     func answer(for query: String, history: [ConversationTurn]) async -> String? {
         guard !query.isEmpty else { return nil }
         return answerProvider(query)
+    }
+}
+
+private struct DuplicateTriviaIntelligence: AIConversationProviding {
+    func supportMaterial(for topic: String, type: ActivityType) async throws -> [String] {
+        ["Guía rápida de \(topic)"]
+    }
+
+    func chatReply(
+        userMessage: String,
+        history: [ConversationTurn],
+        activityTitle: String,
+        topic: String,
+        type: ActivityType
+    ) async throws -> String {
+        "OK"
+    }
+
+    func triviaQuestions(
+        count: Int,
+        categories: [TriviaCategory],
+        difficulty: Int
+    ) async throws -> [TriviaQuestion] {
+        let category = categories.first ?? .math
+        let repeated = TriviaQuestion(
+            category: category,
+            prompt: "Pregunta repetida",
+            options: ["A", "B", "C", "D"],
+            correctOptionIndex: 0
+        )
+        return Array(repeating: repeated, count: max(count, 1))
     }
 }
 
