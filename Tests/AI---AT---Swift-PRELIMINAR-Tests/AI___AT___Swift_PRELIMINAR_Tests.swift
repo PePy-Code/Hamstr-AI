@@ -506,6 +506,20 @@ func aiConversationServiceTriviaUsesGeneratedPayload() async throws {
     #expect(questions.allSatisfy { $0.options.count == 4 })
 }
 
+@Test("AIConversationService fallback de trivia soporta un banco más grande")
+func aiConversationServiceFallbackTriviaSupportsLargerBank() async throws {
+    let service = AIConversationService(openSourceKnowledge: MockOpenSourceKnowledge(answer: nil))
+
+    let questions = try await service.triviaQuestions(
+        count: 20,
+        categories: TriviaCategory.allCases,
+        difficulty: 2
+    )
+
+    #expect(questions.count == 20)
+    #expect(Set(questions.map(\.prompt)).count == questions.count)
+}
+
 @Suite(.serialized)
 struct OpenSourceKnowledgeServiceNetworkTests {
     @Test("OpenSourceKnowledgeService soporta preguntas en frase completa y extrae keywords")

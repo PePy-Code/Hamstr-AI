@@ -275,6 +275,48 @@ struct LocalFallbackGenerator {
                     prompt: "¿Cuánto da 7 + 3 * (2 + 1)?",
                     options: ["30", "16", "28", "12"],
                     correctOptionIndex: 1
+                ),
+                TriviaQuestion(
+                    category: .math,
+                    prompt: "¿Cuál es el resultado de 9 * 9?",
+                    options: ["72", "99", "81", "90"],
+                    correctOptionIndex: 2
+                ),
+                TriviaQuestion(
+                    category: .math,
+                    prompt: "¿Cuánto es 144 ÷ 12?",
+                    options: ["10", "11", "12", "14"],
+                    correctOptionIndex: 2
+                ),
+                TriviaQuestion(
+                    category: .math,
+                    prompt: "¿Qué valor tiene x en 2x = 18?",
+                    options: ["6", "9", "8", "7"],
+                    correctOptionIndex: 1
+                ),
+                TriviaQuestion(
+                    category: .math,
+                    prompt: "¿Cuál es la raíz cuadrada de 64?",
+                    options: ["6", "7", "8", "9"],
+                    correctOptionIndex: 2
+                ),
+                TriviaQuestion(
+                    category: .math,
+                    prompt: "¿Cuánto es 15% de 200?",
+                    options: ["20", "30", "35", "40"],
+                    correctOptionIndex: 1
+                ),
+                TriviaQuestion(
+                    category: .math,
+                    prompt: "¿Qué número sigue en la secuencia 2, 4, 8, 16, ...?",
+                    options: ["18", "20", "24", "32"],
+                    correctOptionIndex: 3
+                ),
+                TriviaQuestion(
+                    category: .math,
+                    prompt: "¿Cuánto es 3³?",
+                    options: ["6", "9", "27", "81"],
+                    correctOptionIndex: 2
                 )
             ],
             .history: [
@@ -295,6 +337,42 @@ struct LocalFallbackGenerator {
                     prompt: "¿En qué país se construyó originalmente el Muro de Berlín?",
                     options: ["Alemania Oriental", "Alemania Occidental", "Polonia", "Austria"],
                     correctOptionIndex: 0
+                ),
+                TriviaQuestion(
+                    category: .history,
+                    prompt: "¿En qué año comenzó la Primera Guerra Mundial?",
+                    options: ["1914", "1918", "1939", "1905"],
+                    correctOptionIndex: 0
+                ),
+                TriviaQuestion(
+                    category: .history,
+                    prompt: "¿Qué civilización construyó Machu Picchu?",
+                    options: ["Maya", "Azteca", "Inca", "Romana"],
+                    correctOptionIndex: 2
+                ),
+                TriviaQuestion(
+                    category: .history,
+                    prompt: "¿Quién lideró la independencia de la India con la no violencia?",
+                    options: ["Nehru", "Gandhi", "Mandela", "Churchill"],
+                    correctOptionIndex: 1
+                ),
+                TriviaQuestion(
+                    category: .history,
+                    prompt: "¿Qué imperio fue gobernado por Julio César?",
+                    options: ["Romano", "Bizantino", "Otomano", "Persa"],
+                    correctOptionIndex: 0
+                ),
+                TriviaQuestion(
+                    category: .history,
+                    prompt: "¿En qué año cayó el Muro de Berlín?",
+                    options: ["1985", "1989", "1991", "1995"],
+                    correctOptionIndex: 1
+                ),
+                TriviaQuestion(
+                    category: .history,
+                    prompt: "¿Qué país tuvo la Revolución de 1789?",
+                    options: ["Italia", "España", "Francia", "Alemania"],
+                    correctOptionIndex: 2
                 )
             ],
             .science: [
@@ -303,6 +381,48 @@ struct LocalFallbackGenerator {
                     prompt: "¿Cuál es el símbolo químico del cobre?",
                     options: ["Co", "Cu", "Cr", "Cp"],
                     correctOptionIndex: 1
+                ),
+                TriviaQuestion(
+                    category: .science,
+                    prompt: "¿Qué planeta es conocido como el planeta rojo?",
+                    options: ["Venus", "Marte", "Júpiter", "Saturno"],
+                    correctOptionIndex: 1
+                ),
+                TriviaQuestion(
+                    category: .science,
+                    prompt: "¿Cuál es el órgano que bombea la sangre?",
+                    options: ["Pulmón", "Hígado", "Riñón", "Corazón"],
+                    correctOptionIndex: 3
+                ),
+                TriviaQuestion(
+                    category: .science,
+                    prompt: "¿Qué gas respiramos principalmente del aire?",
+                    options: ["Oxígeno", "Nitrógeno", "CO2", "Helio"],
+                    correctOptionIndex: 1
+                ),
+                TriviaQuestion(
+                    category: .science,
+                    prompt: "¿Cómo se llama el proceso por el cual las plantas producen su alimento?",
+                    options: ["Fermentación", "Respiración", "Fotosíntesis", "Transpiración"],
+                    correctOptionIndex: 2
+                ),
+                TriviaQuestion(
+                    category: .science,
+                    prompt: "¿Cuántos huesos tiene un adulto aproximadamente?",
+                    options: ["206", "180", "230", "250"],
+                    correctOptionIndex: 0
+                ),
+                TriviaQuestion(
+                    category: .science,
+                    prompt: "¿Qué unidad mide la fuerza en el SI?",
+                    options: ["Pascal", "Joule", "Newton", "Watt"],
+                    correctOptionIndex: 2
+                ),
+                TriviaQuestion(
+                    category: .science,
+                    prompt: "¿Cuál es la estrella del sistema solar?",
+                    options: ["Sirio", "La Luna", "El Sol", "Polaris"],
+                    correctOptionIndex: 2
                 )
             ],
             .popCulture: [
@@ -323,6 +443,42 @@ struct LocalFallbackGenerator {
                     prompt: "¿Cuál de estos personajes pertenece a Marvel?",
                     options: ["Batman", "Spider-Man", "Shrek", "Sherlock Holmes"],
                     correctOptionIndex: 1
+                ),
+                TriviaQuestion(
+                    category: .popCulture,
+                    prompt: "¿Qué videojuego popular incluye bloques y construcción libre?",
+                    options: ["FIFA", "Minecraft", "Pac-Man", "Tetris"],
+                    correctOptionIndex: 1
+                ),
+                TriviaQuestion(
+                    category: .popCulture,
+                    prompt: "¿Qué banda lanzó el álbum 'Abbey Road'?",
+                    options: ["Queen", "The Beatles", "Nirvana", "ABBA"],
+                    correctOptionIndex: 1
+                ),
+                TriviaQuestion(
+                    category: .popCulture,
+                    prompt: "¿Cuál es el apellido de la familia en 'Los Simpson'?",
+                    options: ["Smith", "Simpson", "Johnson", "Brown"],
+                    correctOptionIndex: 1
+                ),
+                TriviaQuestion(
+                    category: .popCulture,
+                    prompt: "¿Qué personaje dice 'Yo soy tu padre' en Star Wars?",
+                    options: ["Yoda", "Luke", "Obi-Wan", "Darth Vader"],
+                    correctOptionIndex: 3
+                ),
+                TriviaQuestion(
+                    category: .popCulture,
+                    prompt: "¿Qué superhéroe usa el alias de Bruce Wayne?",
+                    options: ["Superman", "Batman", "Flash", "Aquaman"],
+                    correctOptionIndex: 1
+                ),
+                TriviaQuestion(
+                    category: .popCulture,
+                    prompt: "¿En qué saga aparece el anillo único?",
+                    options: ["Star Trek", "Harry Potter", "El Señor de los Anillos", "Matrix"],
+                    correctOptionIndex: 2
                 )
             ]
         ]

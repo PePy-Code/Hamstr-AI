@@ -1453,6 +1453,7 @@ public struct MentalTrainerView: View {
     @State private var isGameOver = false
     @State private var sessionCompleted = false
     @State private var questionAnswered = false
+    @State private var showCorrectAnswerIndicator = false
     @State private var answeredOptionIndex: Int?
     @State private var correctOptionIndex: Int?
     @State private var hasScheduledMotivation = false
@@ -1523,10 +1524,14 @@ public struct MentalTrainerView: View {
                                     Text(option)
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                     if questionAnswered {
-                                        if index == correctOptionIndex {
-                                            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                                        if showCorrectAnswerIndicator {
+                                            if index == correctOptionIndex {
+                                                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                                            } else if index == answeredOptionIndex {
+                                                Image(systemName: "xmark.circle.fill").foregroundStyle(.red)
+                                            }
                                         } else if index == answeredOptionIndex {
-                                            Image(systemName: "xmark.circle.fill").foregroundStyle(.red)
+                                            Image(systemName: "exclamationmark.circle.fill").foregroundStyle(.yellow)
                                         }
                                     }
                                 }
@@ -1595,6 +1600,7 @@ public struct MentalTrainerView: View {
             isGameOver = false
             sessionCompleted = false
             questionAnswered = false
+            showCorrectAnswerIndicator = false
             answeredOptionIndex = nil
             correctOptionIndex = nil
             trainerAlertStep = nil
@@ -1630,6 +1636,7 @@ public struct MentalTrainerView: View {
         guard !questionAnswered, !sessionCompleted, !isGameOver else { return }
         await MainActor.run {
             questionAnswered = true
+            showCorrectAnswerIndicator = false
             answeredOptionIndex = optionIndex >= 0 ? optionIndex : nil
             isLoading = true
         }
@@ -1649,12 +1656,12 @@ public struct MentalTrainerView: View {
         let session = await mentalService.activeSession
 
         await MainActor.run {
-            correctOptionIndex = feedback.correctOptionIndex
             correctAnswers = session?.attempt.correctAnswers ?? correctAnswers + (feedback.isCorrect ? 1 : 0)
             incorrectAnswers = session?.attempt.incorrectAnswers ?? incorrectAnswers + (feedback.isCorrect ? 0 : 1)
             currentQuestionIndex = session?.currentIndex ?? currentQuestionIndex + 1
             questionDeadline = session?.deadline
             remainingSeconds = max(Int((session?.deadline ?? Date()).timeIntervalSinceNow.rounded(.up)), 0)
+            correctOptionIndex = nil
 
             if feedback.isCorrect {
                 feedbackMessage = "¡Correcto!"
@@ -1666,7 +1673,16 @@ public struct MentalTrainerView: View {
                 feedbackMessage = "Respuesta incorrecta."
                 feedbackColor = .red
             }
+        }
 
+        try? await Task.sleep(nanoseconds: 350_000_000)
+        await MainActor.run {
+            correctOptionIndex = feedback.correctOptionIndex
+            showCorrectAnswerIndicator = true
+        }
+        try? await Task.sleep(nanoseconds: 350_000_000)
+
+        await MainActor.run {
             if feedback.isGameOver {
                 isGameOver = true
                 sessionCompleted = true
@@ -1681,6 +1697,7 @@ public struct MentalTrainerView: View {
                     self.currentQuestion = nextQuestion
                     self.answeredOptionIndex = nil
                     self.correctOptionIndex = nil
+                    self.showCorrectAnswerIndicator = false
                     self.questionAnswered = false
                     self.isLoading = false
                 }
