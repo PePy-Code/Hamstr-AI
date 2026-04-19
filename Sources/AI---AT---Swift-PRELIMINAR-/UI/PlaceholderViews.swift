@@ -428,17 +428,18 @@ private struct ActivityLaunchPlaceholderView: View {
             if remainingSeconds > 0 {
                 remainingSeconds -= 1
             } else {
+                let wasWorkPhase = isWorkPhase
                 isWorkPhase.toggle()
                 remainingSeconds = isWorkPhase ? workDurationSeconds : breakDurationSeconds
                 isRunning = true
                 pomodoroTransitionAlert = PomodoroTransitionAlert(
-                    message: isWorkPhase
-                        ? "Descanso finalizado (\(formattedTime(breakDurationSeconds))). Iniciando trabajo (\(formattedTime(workDurationSeconds)))."
-                        : "Trabajo finalizado (\(formattedTime(workDurationSeconds))). Iniciando descanso (\(formattedTime(breakDurationSeconds)))."
+                    message: wasWorkPhase
+                        ? "Trabajo finalizado (\(formattedTime(workDurationSeconds))). Iniciando descanso (\(formattedTime(breakDurationSeconds)))."
+                        : "Descanso finalizado (\(formattedTime(breakDurationSeconds))). Iniciando trabajo (\(formattedTime(workDurationSeconds)))."
                 )
-                pomodoroPhaseMessage = isWorkPhase
-                    ? "Cambio automático: pasaste de descanso a trabajo."
-                    : "Cambio automático: pasaste de trabajo a descanso."
+                pomodoroPhaseMessage = wasWorkPhase
+                    ? "Cambio automático: pasaste de trabajo a descanso."
+                    : "Cambio automático: pasaste de descanso a trabajo."
                 playPomodoroTransitionSound()
             }
         }
