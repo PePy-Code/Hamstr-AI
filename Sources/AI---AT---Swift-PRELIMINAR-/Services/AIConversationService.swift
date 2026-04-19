@@ -151,6 +151,12 @@ public struct AIConversationService: AIConversationProviding {
 }
 
 private extension AIConversationService {
+    enum MascotMessageConfig {
+        static let upcomingHorizonSeconds: TimeInterval = 6 * 60 * 60
+        static let maxMessageLength = 180
+        static let urgentActivityThresholdMinutes = 90
+    }
+
     func startSupportPrompt(for context: String) -> String {
         """
         Inicio de actividad de estudio: \(context).
@@ -263,7 +269,7 @@ private extension AIConversationService {
         tomorrowActivities: [Activity],
         now: Date
     ) -> [Activity] {
-        let horizon = now.addingTimeInterval(6 * 60 * 60)
+        let horizon = now.addingTimeInterval(MascotMessageConfig.upcomingHorizonSeconds)
         return (todayActivities + tomorrowActivities)
             .filter { $0.status != .completed && $0.status != .failed }
             .filter { $0.scheduledAt >= now && $0.scheduledAt <= horizon }
@@ -288,7 +294,7 @@ private extension AIConversationService {
 
         return """
         Eres una mascota académica estilo app educativa (tono cercano, alegre y de confianza).
-        Escribe UN SOLO mensaje corto en español (máximo 180 caracteres), sin markdown, sin links, sin listas.
+        Escribe UN SOLO mensaje corto en español (máximo \(MascotMessageConfig.maxMessageLength) caracteres), sin markdown, sin links, sin listas.
 
         Objetivo del mensaje:
         - motivar al estudiante a usar el Trainer,
@@ -315,7 +321,7 @@ private extension AIConversationService {
             .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard !oneLine.isEmpty else { return "" }
-        let maxLength = 180
+        let maxLength = MascotMessageConfig.maxMessageLength
         guard oneLine.count > maxLength else { return oneLine }
         return String(oneLine.prefix(maxLength)).trimmingCharacters(in: .whitespacesAndNewlines)
     }
@@ -329,7 +335,7 @@ private extension AIConversationService {
     ) -> String {
         if let next = upcomingActivities.first {
             let minutes = max(Int(next.scheduledAt.timeIntervalSince(now) / 60), 0)
-            if minutes <= 90 {
+            if minutes <= MascotMessageConfig.urgentActivityThresholdMinutes {
                 return "👀 ¡Ojo! En \(minutes) min toca \"\(next.title)\". Ciérralo y luego te lanzas al Trainer."
             }
             return "🕒 Próxima misión: \"\(next.title)\". Prepárate con 10 min de enfoque y después un round de Trainer."
