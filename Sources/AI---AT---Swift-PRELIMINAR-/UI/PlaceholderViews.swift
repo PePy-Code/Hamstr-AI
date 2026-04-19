@@ -380,7 +380,6 @@ private struct ActivityLaunchPlaceholderView: View {
     @State private var remainingSeconds = 25 * 60
     @State private var isRunning = true
     @State private var isWorkPhase = true
-    @State private var pomodoroPhaseMessage: String?
     private let workDurationSeconds = 25 * 60
     private let breakDurationSeconds = 5 * 60
     private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -434,12 +433,9 @@ private struct ActivityLaunchPlaceholderView: View {
                 isRunning = true
                 pomodoroTransitionAlert = PomodoroTransitionAlert(
                     message: wasWorkPhase
-                        ? "Trabajo finalizado (\(formattedTime(workDurationSeconds))). Iniciando descanso (\(formattedTime(breakDurationSeconds)))."
-                        : "Descanso finalizado (\(formattedTime(breakDurationSeconds))). Iniciando trabajo (\(formattedTime(workDurationSeconds)))."
+                        ? "Trabajo finalizado (25 min). Iniciando descanso (5 min)."
+                        : "Descanso finalizado (5 min). Iniciando trabajo (25 min)."
                 )
-                pomodoroPhaseMessage = wasWorkPhase
-                    ? "Cambio automático: pasaste de trabajo a descanso."
-                    : "Cambio automático: pasaste de descanso a trabajo."
                 playPomodoroTransitionSound()
             }
         }
@@ -527,7 +523,7 @@ private struct ActivityLaunchPlaceholderView: View {
             Text(formattedTime(remainingSeconds))
                 .font(.title2.monospacedDigit().weight(.bold))
 
-            Text(pomodoroPhaseMessage ?? currentPomodoroPhaseMessage)
+            Text(currentPomodoroPhaseMessage)
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -549,7 +545,6 @@ private struct ActivityLaunchPlaceholderView: View {
                     isRunning = false
                     isWorkPhase = true
                     remainingSeconds = workDurationSeconds
-                    pomodoroPhaseMessage = nil
                 }
                 .buttonStyle(.bordered)
             }
