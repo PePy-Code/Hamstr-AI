@@ -435,6 +435,7 @@ func aiConversationServiceDefaultUsesOpenSourceProvider() async throws {
 }
 
 @Test("OpenSourceKnowledgeService soporta preguntas en frase completa y extrae keywords")
+@MainActor
 func openSourceKnowledgeServiceHandlesNaturalLanguageQuestions() async throws {
     let session = makeMockedSession()
 
@@ -469,16 +470,17 @@ func openSourceKnowledgeServiceHandlesNaturalLanguageQuestions() async throws {
 }
 
 @Test("OpenSourceKnowledgeService usa Groq y responde en español cuando hay API key")
+@MainActor
 func openSourceKnowledgeServiceUsesGroqWhenConfigured() async throws {
     let session = makeMockedSession()
     var sawGroqRequest = false
-    let lock = NSLock()
+    let stateQueue = DispatchQueue(label: "test.groq.request.state")
     MockURLProtocol.requestHandler = { request in
         let url = try #require(request.url)
         if url.absoluteString.contains("api.groq.com/openai/v1/chat/completions") {
-            lock.lock()
-            sawGroqRequest = true
-            lock.unlock()
+            stateQueue.sync {
+                sawGroqRequest = true
+            }
             let payload: [String: Any] = [
                 "choices": [
                     [
@@ -505,8 +507,9 @@ func openSourceKnowledgeServiceUsesGroqWhenConfigured() async throws {
 
     let service = OpenSourceKnowledgeService(session: session, groqAPIKey: "test-key")
     let answer = await service.answer(for: "quien fue albert einstein?")
+    let didSeeGroqRequest = stateQueue.sync { sawGroqRequest }
 
-    #expect(sawGroqRequest)
+    #expect(didSeeGroqRequest)
     #expect(answer?.contains("fue un científico") == true)
 }
 

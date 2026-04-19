@@ -146,7 +146,7 @@ private extension AIConversationService {
     func isDirectSolveRequest(_ message: String) -> Bool {
         let normalized = " \(message.lowercased()) "
         let solveTokens = [
-            " resuelve ", " resuélv", " hazme la tarea ", " haz la tarea ", " dame la respuesta ",
+            " resuelve ", " resuélveme ", " resuélvelo ", " hazme la tarea ", " haz la tarea ", " dame la respuesta ",
             " responde por mí ", " escribe el ensayo ", " dame el resultado ", " soluciona "
         ]
         return solveTokens.contains { normalized.contains($0) }
