@@ -329,7 +329,7 @@ func appPreferenceStorePersistsSettings() throws {
         return
     }
     defaults.removePersistentDomain(forName: suiteName)
-    var store = AppPreferenceStore(defaults: defaults)
+    let store = AppPreferenceStore(defaults: defaults)
 
     store.timerSoundSystemID = 1013
     store.notificationsEnabled = false

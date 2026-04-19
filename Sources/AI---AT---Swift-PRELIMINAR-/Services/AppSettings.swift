@@ -16,7 +16,7 @@ public struct AppPreferenceValues: Sendable, Equatable {
     }
 }
 
-public struct AppPreferenceStore: Sendable {
+public struct AppPreferenceStore {
     private enum Keys {
         static let timerSoundSystemID = "app-settings.timer-sound-system-id"
         static let notificationsEnabled = "app-settings.notifications-enabled"
@@ -78,24 +78,31 @@ public struct AppPreferenceStore: Sendable {
 }
 
 public enum AppPreferences {
-    private static let store = AppPreferenceStore()
-
     public static func values() -> AppPreferenceValues {
-        store.values()
+        AppPreferenceStore().values()
     }
 
     public static var timerSoundSystemID: Int? {
-        get { store.timerSoundSystemID }
-        set { store.timerSoundSystemID = newValue }
+        get { AppPreferenceStore().timerSoundSystemID }
+        set {
+            let store = AppPreferenceStore()
+            store.timerSoundSystemID = newValue
+        }
     }
 
     public static var notificationsEnabled: Bool {
-        get { store.notificationsEnabled }
-        set { store.notificationsEnabled = newValue }
+        get { AppPreferenceStore().notificationsEnabled }
+        set {
+            let store = AppPreferenceStore()
+            store.notificationsEnabled = newValue
+        }
     }
 
     public static var mentalTrainerSuggestionEnabled: Bool {
-        get { store.mentalTrainerSuggestionEnabled }
-        set { store.mentalTrainerSuggestionEnabled = newValue }
+        get { AppPreferenceStore().mentalTrainerSuggestionEnabled }
+        set {
+            let store = AppPreferenceStore()
+            store.mentalTrainerSuggestionEnabled = newValue
+        }
     }
 }
