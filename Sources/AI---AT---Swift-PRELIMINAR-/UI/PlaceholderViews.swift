@@ -11,6 +11,7 @@ public struct HomeView: View {
     @State private var todayActivities: [Activity] = []
     @State private var tomorrowActivities: [Activity] = []
     @State private var streakState = StreakState()
+    @State private var aiPetSupportMessage: String?
     @State private var hasLoaded = false
     @State private var pendingStartActivity: Activity?
     @State private var activeActivity: Activity?
@@ -18,6 +19,7 @@ public struct HomeView: View {
     @State private var openWeeklyAgenda = false
     @State private var showQuickAddActivity = false
     private let agendaService = AgendaService(persistence: LocalAgendaDatabase())
+    private let intelligence = AIConversationService()
     private let calendar = Calendar.current
 
     public init() {}
@@ -49,7 +51,7 @@ public struct HomeView: View {
                     HStack(alignment: .top, spacing: 10) {
                         Text("🐭")
                             .font(.largeTitle)
-                        Text(petSupportMessage)
+                        Text(displayedPetSupportMessage)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -89,6 +91,9 @@ public struct HomeView: View {
             .navigationTitle("Menú principal")
             .onAppear {
                 Task { await refreshSummary() }
+            }
+            .onDisappear {
+                aiPetSupportMessage = nil
             }
             .task {
                 guard !hasLoaded else { return }
@@ -240,9 +245,17 @@ public struct HomeView: View {
         let tomorrowItems = await agendaService.listActivities(on: tomorrow)
         let updatedStreakDays = await StreakComputation.days(endingOn: today, agendaService: agendaService, calendar: calendar)
         let todayReason = await StreakComputation.validationReason(for: today, agendaService: agendaService, calendar: calendar)
+        let generatedPetMessage = await intelligence.mascotSupportMessage(
+            todayActivities: activities,
+            tomorrowActivities: tomorrowItems,
+            streakDays: updatedStreakDays,
+            now: today,
+            calendar: calendar
+        )
         await MainActor.run {
             self.todayActivities = activities
             self.tomorrowActivities = tomorrowItems
+            self.aiPetSupportMessage = generatedPetMessage
             self.streakState = StreakState(
                 days: updatedStreakDays,
                 lastValidatedDay: updatedStreakDays > 0 ? calendar.startOfDay(for: today) : nil,
@@ -294,14 +307,42 @@ public struct HomeView: View {
         return formatter.string(from: date)
     }
 
-    private var petSupportMessage: String {
+    private var displayedPetSupportMessage: String {
+        let generated = aiPetSupportMessage?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !generated.isEmpty {
+            return generated
+        }
+        return petSupportFallbackMessage
+    }
+
+    private var petSupportFallbackMessage: String {
         if streakState.days >= 7 {
-            return "¡Lo estás haciendo genial! Tu constancia está dando resultados."
+            let msgs = [
+                "🔥 \(streakState.days) días seguidos, ¡Chispa está impresionada!",
+                "⚡ \(streakState.days) días de racha. ¡Hoy suma uno más!",
+                "🌟 Tu constancia habla por ti: \(streakState.days) días en marcha."
+            ]
+            return msgs.randomElement()!
         }
         if todayActivities.isEmpty {
-            return "Hoy puedes avanzar un poco con una actividad corta para mantener el ritmo."
+            let msgs = [
+                "🌿 Agenda libre hoy. ¿Le damos al Trainer?",
+                "🎲 Día tranquilo: momento ideal para explorar algo nuevo.",
+                "🐛 Chispa dice: los días sin tareas son para aprender por curiosidad.",
+                "💧 Sin actividades. Hidratarte y respirar antes de empezar también cuenta.",
+                "🏃 Día libre: 5 min de movimiento ahora y tu cerebro te lo agradece luego."
+            ]
+            return msgs.randomElement()!
         }
-        return "Paso a paso: inicia una actividad y enfócate unos minutos."
+        let msgs = [
+            "💡 Un paso pequeño hoy vale más que un salto mañana.",
+            "🧠 Chispa cargando consejo... mientras tanto, ¡abre una actividad!",
+            "🎯 Foco, pausa, foco: la receta de Chispa para hoy.",
+            "📵 Silencia el teléfono 20 min y notarás la diferencia.",
+            "🧩 Divide la primera tarea en pasos mini y solo mira el primero.",
+            "🎧 Música sin letra + escritorio despejado = modo concentración activado."
+        ]
+        return msgs.randomElement()!
     }
 
     private func statusColor(for status: ActivityStatus) -> Color {

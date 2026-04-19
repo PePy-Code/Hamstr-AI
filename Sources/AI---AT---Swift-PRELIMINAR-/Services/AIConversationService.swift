@@ -111,9 +111,90 @@ public struct AIConversationService: AIConversationProviding {
             difficulty: validatedDifficulty
         )
     }
+
+    public func mascotSupportMessage(
+        todayActivities: [Activity],
+        tomorrowActivities: [Activity],
+        streakDays: Int,
+        now: Date = Date(),
+        calendar: Calendar = .current
+    ) async -> String {
+        let upcoming = upcomingActivities(
+            todayActivities: todayActivities,
+            tomorrowActivities: tomorrowActivities,
+            now: now
+        )
+        let prompt = mascotMessagePrompt(
+            todayActivities: todayActivities,
+            tomorrowActivities: tomorrowActivities,
+            upcomingActivities: upcoming,
+            streakDays: streakDays,
+            now: now,
+            calendar: calendar
+        )
+
+        if let aiAnswer = await openSourceKnowledge.answer(for: prompt) {
+            let cleaned = sanitizeMascotMessage(aiAnswer)
+            if !cleaned.isEmpty {
+                return cleaned
+            }
+        }
+
+        return fallbackMascotMessage(
+            todayActivities: todayActivities,
+            tomorrowActivities: tomorrowActivities,
+            upcomingActivities: upcoming,
+            streakDays: streakDays,
+            now: now
+        )
+    }
 }
 
 private extension AIConversationService {
+    enum MascotMessageConfig {
+        static let upcomingHorizonSeconds: TimeInterval = 6 * 60 * 60
+        static let maxMessageLength = 220
+        static let urgentActivityThresholdMinutes = 90
+
+        static let mascotMoods: [String] = [
+            "entusiasta y lleno de energía",
+            "tranquilo y filosófico",
+            "travieso con humor sutil",
+            "cálido y paternal",
+            "inspirador y poético",
+            "directo y práctico",
+            "misterioso y curioso",
+            "orgulloso del estudiante",
+            "gracioso con una pizca de sabiduría",
+            "soñador pero concreto"
+        ]
+
+        /// Temas de bienestar que Chispa puede traer a colación cuando no hay urgencia inmediata.
+        /// Diseñados para estudiantes +15 años que pueden tener dificultades de concentración o TDAH.
+        static let wellbeingAngles: [String] = [
+            "técnica de enfoque para TDAH: bloques de 10-15 min con pausa activa",
+            "ancla sensorial: un objeto o aroma que indique 'hora de estudiar'",
+            "la regla de los 2 minutos: si algo tarda menos de 2 min, hazlo ahora y despeja la mente",
+            "body doubling: estudiar con alguien cerca (aunque sea por videollamada) ayuda a mantenerse",
+            "música sin letra o ruido blanco para reducir distracción auditiva",
+            "dividir la tarea en pasos mini: solo el primer paso importa ahora mismo",
+            "movimiento antes de estudiar: 5 min de ejercicio activan el lóbulo prefrontal",
+            "modo avión para el teléfono: 20 min sin notificaciones cambia el juego",
+            "hidratación y respiración profunda: el cerebro funciona mejor bien oxigenado",
+            "recompensa planificada: define qué harás después de estudiar como motivación extra",
+            "journaling de 2 minutos: vaciar la mente antes de empezar reduce el ruido interno",
+            "ambiente visual limpio: despeja el escritorio antes de abrir el libro"
+        ]
+
+        static func randomMood() -> String {
+            mascotMoods.randomElement() ?? mascotMoods[0]
+        }
+
+        static func randomWellbeingAngle() -> String {
+            wellbeingAngles.randomElement() ?? wellbeingAngles[0]
+        }
+    }
+
     func startSupportPrompt(for context: String) -> String {
         """
         Inicio de actividad de estudio: \(context).
@@ -219,6 +300,145 @@ private extension AIConversationService {
         - correctOptionIndex entre 0 y 3.
         - No incluyas explicación ni texto fuera del JSON.
         """
+    }
+
+    func upcomingActivities(
+        todayActivities: [Activity],
+        tomorrowActivities: [Activity],
+        now: Date
+    ) -> [Activity] {
+        let horizon = now.addingTimeInterval(MascotMessageConfig.upcomingHorizonSeconds)
+        return (todayActivities + tomorrowActivities)
+            .filter { $0.status != .completed && $0.status != .failed }
+            .filter { $0.scheduledAt >= now && $0.scheduledAt <= horizon }
+            .sorted { $0.scheduledAt < $1.scheduledAt }
+    }
+
+    func mascotMessagePrompt(
+        todayActivities: [Activity],
+        tomorrowActivities: [Activity],
+        upcomingActivities: [Activity],
+        streakDays: Int,
+        now: Date,
+        calendar: Calendar
+    ) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "es_ES")
+        formatter.dateFormat = "HH:mm"
+        let upcomingRows = upcomingActivities.prefix(3).map { activity in
+            let dayLabel = calendar.isDateInToday(activity.scheduledAt) ? "hoy" : "mañana"
+            return "- \(activity.title) (\(dayLabel) \(formatter.string(from: activity.scheduledAt)))"
+        }.joined(separator: "\n")
+
+        let mood = MascotMessageConfig.randomMood()
+        let wellbeing = MascotMessageConfig.randomWellbeingAngle()
+        let pending = (todayActivities + tomorrowActivities)
+            .filter { $0.status != .completed && $0.status != .failed }.count
+
+        return """
+        Eres Chispa, una pequeña mascota sabia y entrañable, como Pepe Grillo: cercana, algo filósofa, con chispa de humor y mucho cariño.
+        Tu misión es acompañar al estudiante (15+ años, puede tener TDAH o dificultades de concentración) con un mensaje fresco y genuino cada vez que abre la app.
+
+        Hoy tu humor es: \(mood).
+        Tema de bienestar disponible: \(wellbeing).
+
+        Contexto del estudiante:
+        - Racha activa: \(streakDays) día(s).
+        - Actividades pendientes hoy + mañana: \(pending).
+        - Hora actual: \(formatter.string(from: now)).
+        \(upcomingRows.isEmpty ? "" : "\nActividades próximas (en menos de 6 h):\n\(upcomingRows)")
+
+        Instrucciones de escritura:
+        - Escribe UN solo mensaje en español, máximo \(MascotMessageConfig.maxMessageLength) caracteres.
+        - Sin markdown, sin links, sin listas.
+        - Varía el inicio, el tono y los emojis en cada respuesta: nunca empieces igual dos veces.
+        - Si hay actividad próxima, prioriza ese aviso con cariño y un poco de urgencia.
+        - Si la racha es alta (7+), celébralo con entusiasmo.
+        - Si no hay nada urgente, elige entre: dar el tip de bienestar del día, una reflexión motivacional, un consejo de concentración o una metáfora ingeniosa.
+        - El bienestar no es solo estudiar: también vale recordar respirar, moverse, hidratarse o descansar la mente.
+        - Puedes hablar de Chispa en tercera persona ocasionalmente, o en primera.
+        - Lo único prohibido: repetir la misma estructura de mensaje dos veces seguidas.
+        """
+    }
+
+    func sanitizeMascotMessage(_ text: String) -> String {
+        let oneLine = text
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !oneLine.isEmpty else { return "" }
+        let maxLength = MascotMessageConfig.maxMessageLength
+        guard oneLine.count > maxLength else { return oneLine }
+        return String(oneLine.prefix(maxLength)).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    func fallbackMascotMessage(
+        todayActivities: [Activity],
+        tomorrowActivities: [Activity],
+        upcomingActivities: [Activity],
+        streakDays: Int,
+        now: Date
+    ) -> String {
+        if let next = upcomingActivities.first {
+            let minutes = max(Int(next.scheduledAt.timeIntervalSince(now) / 60), 0)
+            if minutes <= MascotMessageConfig.urgentActivityThresholdMinutes {
+                let urgent = [
+                    "👀 Oye, en \(minutes) min toca \"\(next.title)\"... ¡Chispa confía en ti!",
+                    "⏰ \(minutes) minutos para \"\(next.title)\". Respira, enfócate y tú puedes.",
+                    "🎯 Misión en \(minutes) min: \"\(next.title)\". ¡Tú ya sabes lo que hay que hacer!",
+                    "🔔 Psst... \"\(next.title)\" llama en \(minutes) min. ¡Que no te agarre desprevenido!"
+                ]
+                return urgent.randomElement()!
+            }
+            let soon = [
+                "🕒 Antes de que te relajes demasiado: \"\(next.title)\" está en camino. Prepara el terreno.",
+                "📌 Próxima parada: \"\(next.title)\". Chispa ya tiene el cronómetro listo.",
+                "🌱 Un poco de preparación ahora para \"\(next.title)\" te ahorra estrés después.",
+                "🗂️ \"\(next.title)\" se acerca. Échale un vistazo rápido y llegas con ventaja."
+            ]
+            return soon.randomElement()!
+        }
+
+        if streakDays >= 7 {
+            let celebration = [
+                "🔥 \(streakDays) días seguidos, ¡eso no es casualidad! Chispa te mira con orgullo.",
+                "🏆 \(streakDays) días de racha. Los grillos no aplaudimos, pero si pudiéramos...",
+                "⚡ \(streakDays) días y contando. ¡Deja que el Trainer añada otro escalón hoy!",
+                "🌟 \(streakDays) días. Chispa dice: la constancia construye castillos de conocimiento."
+            ]
+            return celebration.randomElement()!
+        }
+
+        if todayActivities.isEmpty && tomorrowActivities.isEmpty {
+            let free = [
+                "🌿 Día sin agenda, mente libre. ¿Y si le das al Trainer solo 5 minutos?",
+                "🎲 Sin compromisos hoy. Es el momento perfecto para explorar el Trainer sin prisa.",
+                "💭 Agenda en blanco... ¿Qué tal un round de trivia para calentar neuronas?",
+                "🐛 Chispa dice: los días tranquilos son los mejores para aprender algo nuevo."
+            ]
+            return free.randomElement()!
+        }
+
+        let general = [
+            "💡 Un paso pequeño hoy vale más que un salto perfecto mañana. ¡Dale!",
+            "🧠 El Trainer espera. 5 minutos bastan para despertar al cerebro dormido.",
+            "🌀 La técnica Pomodoro: 25 min de enfoque, 5 de descanso. Chispa lo aprueba.",
+            "🎵 Estudiar tiene su ritmo. Encuentra el tuyo y el tiempo vuela solo.",
+            "🔑 ¿Sabes qué abre todas las puertas? La constancia. Y tú ya la tienes.",
+            "🌈 Cada actividad que cierras es una ficha más en tu tablero. ¡Mueve ficha!",
+            "🦗 Chispa estuvo leyendo: 3 repasos espaciados fijan más que 1 hora seguida.",
+            "🎯 Foco + pausa + foco: la receta secreta de Chispa para el día de hoy.",
+            "📵 Modo avión 20 min y el teléfono deja de robar tu atención. Pruébalo.",
+            "💧 Hidratado y con dos respiraciones profundas antes de empezar. Chispa lo jura.",
+            "🏃 5 min de movimiento antes de estudiar activan el cerebro mejor que el café.",
+            "🎯 Solo el primer paso importa ahora: ábrete a la primera tarea y el resto llega solo.",
+            "🔕 Notificaciones en silencio, puerta cerrada, un solo objetivo. Así se entra en zona.",
+            "🌿 Si tu mente divaga, no te regañes: nota el pensamiento, suéltalo y vuelve al texto.",
+            "⏱️ Bloques cortos de 10-15 min son igual de válidos que una hora seguida. Tú eliges.",
+            "🧩 Divide la tarea en partes mini y solo mira la primera pieza. El resto aparece solo.",
+            "🎧 Música sin letra o lluvia de fondo: pequeño truco para bloquear distracciones.",
+            "🛋️ Body doubling: estudia con alguien cerca (video incluido) y el foco llega más fácil."
+        ]
+        return general.randomElement()!
     }
 }
 

@@ -472,6 +472,68 @@ func aiConversationServiceDefaultUsesOpenSourceProvider() async throws {
     #expect(answer == "Respuesta externa")
 }
 
+@Test("AIConversationService genera mensaje de mascota desde proveedor externo")
+func aiConversationServiceGeneratesMascotMessageFromOpenSourceProvider() async throws {
+    let baseDate = Date(timeIntervalSince1970: 1_710_345_600)
+    let calendar = Calendar(identifier: .gregorian)
+    let activity = Activity(
+        title: "Entregar ensayo",
+        topic: "Literatura",
+        type: .task,
+        status: .pending,
+        scheduledAt: baseDate.addingTimeInterval(45 * 60)
+    )
+    let service = AIConversationService(
+        openSourceKnowledge: MockOpenSourceKnowledge(
+            answerProvider: { query in
+                // El nuevo prompt usa "Chispa" como nombre de la mascota
+                if query.contains("Chispa") {
+                    return "¡Ánimo! Ya casi es hora de Entregar ensayo, tú puedes. 🎯"
+                }
+                return nil
+            }
+        )
+    )
+
+    let message = await service.mascotSupportMessage(
+        todayActivities: [activity],
+        tomorrowActivities: [],
+        streakDays: 3,
+        now: baseDate,
+        calendar: calendar
+    )
+
+    // El mensaje debe ser no vacío y provenir del proveedor externo
+    #expect(!message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+    #expect(message.contains("Entregar ensayo"))
+}
+
+@Test("AIConversationService usa fallback en mensaje de mascota cuando no hay respuesta externa")
+func aiConversationServiceMascotMessageFallsBackWhenOpenSourceFails() async throws {
+    let baseDate = Date(timeIntervalSince1970: 1_710_345_600)
+    let calendar = Calendar(identifier: .gregorian)
+    let activity = Activity(
+        title: "Repaso de cálculo",
+        topic: "Derivadas",
+        type: .study,
+        status: .notStarted,
+        scheduledAt: baseDate.addingTimeInterval(30 * 60)
+    )
+    let service = AIConversationService(openSourceKnowledge: MockOpenSourceKnowledge(answer: nil))
+
+    let message = await service.mascotSupportMessage(
+        todayActivities: [activity],
+        tomorrowActivities: [],
+        streakDays: 1,
+        now: baseDate,
+        calendar: calendar
+    )
+
+    // Con actividad urgente (30 min), el fallback menciona el título de la actividad
+    #expect(message.contains("Repaso de cálculo"))
+    #expect(!message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+}
+
 @Test("AIConversationService trivia usa payload JSON del proveedor externo")
 func aiConversationServiceTriviaUsesGeneratedPayload() async throws {
     let triviaJSON = """
