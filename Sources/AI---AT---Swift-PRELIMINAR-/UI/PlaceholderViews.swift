@@ -1447,21 +1447,19 @@ public struct MentalTrainerView: View {
     @State private var currentQuestionIndex = 0
     @State private var totalQuestions = 0
     @State private var questionDeadline: Date?
+    @State private var remainingSeconds = 0
     @State private var feedbackMessage: String?
     @State private var feedbackColor: Color = .secondary
     @State private var isGameOver = false
     @State private var sessionCompleted = false
-    @State private var sessionWon = false
     @State private var questionAnswered = false
     @State private var answeredOptionIndex: Int?
     @State private var correctOptionIndex: Int?
     @State private var hasScheduledMotivation = false
     @State private var scheduledMotivationMessage: NotificationMessage?
     @State private var trainerAlertStep: TrainerAlertStep?
-    @State private var shouldShowStreakAfterWin = false
-    @State private var trainerStreakDays = 0
-    @State private var trainerStreakIncrementedToday = false
-    private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    @State private var lossAlertMessage = ""
+    @State private var countdownTask: Task<Void, Never>?
     private let mentalService = MentalTrainerService()
     private let notificationService = AppNotifications.service
     private let agendaService = AgendaService(persistence: LocalAgendaDatabase())
@@ -1486,7 +1484,7 @@ public struct MentalTrainerView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
-                Text("Responde trivia de opción múltiple con 10 segundos por pregunta. Ganas al llegar a 8 correctas seguidas.")
+                Text("Responde trivia de opción múltiple con 15 segundos por pregunta. La partida termina en el primer error.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 Button(isLoading ? "Cargando..." : "Iniciar entrenamiento") {
@@ -1511,10 +1509,10 @@ public struct MentalTrainerView: View {
                         Text(currentQuestion.prompt)
                             .font(.headline)
 
-                        if let deadline = questionDeadline {
-                            Text("Tiempo restante: \(remainingSeconds(until: deadline))s")
+                        if questionDeadline != nil {
+                            Text("Tiempo restante: \(remainingSeconds)s")
                                 .font(.subheadline.monospacedDigit())
-                                .foregroundStyle(remainingSeconds(until: deadline) <= 3 ? .red : .secondary)
+                                .foregroundStyle(remainingSeconds <= 3 ? .red : .secondary)
                         }
 
                         ForEach(Array(currentQuestion.options.enumerated()), id: \.offset) { index, option in
@@ -1556,21 +1554,14 @@ public struct MentalTrainerView: View {
                     .disabled(isLoading)
 
                     if sessionCompleted || isGameOver {
-                        Text(sessionWon ? "Trivia ganada" : (isGameOver ? "Game Over" : "Sesión finalizada"))
+                        Text(isGameOver ? "Game Over" : "Sesión finalizada")
                             .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(sessionWon ? .green : (isGameOver ? .red : .green))
+                            .foregroundStyle(isGameOver ? .red : .green)
                     }
                 }
             }
         }
         .padding()
-        .onReceive(ticker) { _ in
-            guard hasStarted, !questionAnswered, !sessionCompleted, !isGameOver,
-                  let deadline = questionDeadline else { return }
-            if Date() >= deadline {
-                Task { await answer(optionIndex: -1, answerDate: Date()) }
-            }
-        }
         .task {
             guard !hasScheduledMotivation else { return }
             hasScheduledMotivation = true
@@ -1581,30 +1572,18 @@ public struct MentalTrainerView: View {
         }
         .alert(item: $trainerAlertStep) { step in
             switch step {
-            case .win:
+            case .loss:
                 return Alert(
-                    title: Text("¡Felicidades!"),
-                    message: Text("Ganaste la trivia con 8 respuestas correctas."),
-                    dismissButton: .default(Text("Continuar")) {
-                        if shouldShowStreakAfterWin {
-                            trainerAlertStep = .streakInfo
-                        } else {
-                            dismiss()
-                        }
-                    }
-                )
-            case .streakInfo:
-                let info = trainerStreakIncrementedToday
-                    ? "Tu racha aumentó en 1 día. Llevas \(trainerStreakDays) días."
-                    : "Tu racha de hoy ya estaba validada. Llevas \(trainerStreakDays) días."
-                return Alert(
-                    title: Text("🔥 Racha"),
-                    message: Text(info),
+                    title: Text("Fin de la trivia"),
+                    message: Text(lossAlertMessage),
                     dismissButton: .default(Text("Continuar")) {
                         dismiss()
                     }
                 )
             }
+        }
+        .onDisappear {
+            countdownTask?.cancel()
         }
     }
 
@@ -1615,12 +1594,13 @@ public struct MentalTrainerView: View {
             feedbackMessage = nil
             isGameOver = false
             sessionCompleted = false
-            sessionWon = false
             questionAnswered = false
             answeredOptionIndex = nil
             correctOptionIndex = nil
             trainerAlertStep = nil
+            remainingSeconds = 0
         }
+        countdownTask?.cancel()
 
         do {
             let session = try await mentalService.startSession(questionCount: 10)
@@ -1632,9 +1612,11 @@ public struct MentalTrainerView: View {
                 totalQuestions = session.questions.count
                 currentQuestionIndex = session.currentIndex
                 questionDeadline = session.deadline
+                remainingSeconds = max(Int(session.deadline.timeIntervalSinceNow.rounded(.up)), 0)
                 correctAnswers = session.attempt.correctAnswers
                 incorrectAnswers = session.attempt.incorrectAnswers
             }
+            startCountdown(deadline: session.deadline)
         } catch {
             await MainActor.run {
                 isLoading = false
@@ -1651,11 +1633,14 @@ public struct MentalTrainerView: View {
             answeredOptionIndex = optionIndex >= 0 ? optionIndex : nil
             isLoading = true
         }
+        countdownTask?.cancel()
 
-        guard let feedback = await mentalService.submitAnswer(optionIndex: optionIndex, answeredAt: answerDate) else {
+        guard let feedback = try? await mentalService.submitAnswer(optionIndex: optionIndex, answeredAt: answerDate) else {
             await MainActor.run {
                 isLoading = false
                 questionAnswered = false
+                errorMessage = "No se pudo obtener una nueva pregunta en tiempo real."
+                sessionCompleted = true
             }
             return
         }
@@ -1669,12 +1654,10 @@ public struct MentalTrainerView: View {
             incorrectAnswers = session?.attempt.incorrectAnswers ?? incorrectAnswers + (feedback.isCorrect ? 0 : 1)
             currentQuestionIndex = session?.currentIndex ?? currentQuestionIndex + 1
             questionDeadline = session?.deadline
+            remainingSeconds = max(Int((session?.deadline ?? Date()).timeIntervalSinceNow.rounded(.up)), 0)
 
             if feedback.isCorrect {
                 feedbackMessage = "¡Correcto!"
-                feedbackColor = .green
-            } else if feedback.isWin {
-                feedbackMessage = "¡Ganaste la trivia!"
                 feedbackColor = .green
             } else if feedback.isGameOver {
                 feedbackMessage = "Respuesta incorrecta. Fin de la trivia."
@@ -1684,17 +1667,12 @@ public struct MentalTrainerView: View {
                 feedbackColor = .red
             }
 
-            if feedback.isWin {
-                sessionWon = true
-                sessionCompleted = true
-                isLoading = false
-                return
-            }
-
             if feedback.isGameOver {
                 isGameOver = true
                 sessionCompleted = true
                 isLoading = false
+                questionDeadline = nil
+                remainingSeconds = 0
                 return
             }
 
@@ -1717,33 +1695,50 @@ public struct MentalTrainerView: View {
             }
         }
 
-        if feedback.isWin {
-            await finalizeWinFlow()
+        if feedback.isGameOver {
+            await finalizeLossFlow(score: feedback.currentCorrectAnswers)
+        } else if let deadline = session?.deadline {
+            startCountdown(deadline: deadline)
         }
     }
 
-    private func remainingSeconds(until deadline: Date) -> Int {
-        max(Int(deadline.timeIntervalSinceNow.rounded(.down)), 0)
-    }
-
-    private func finalizeWinFlow() async {
-        let today = Date()
-        let todaysActivities = await agendaService.listActivities(on: today, calendar: calendar)
-        let hasNoScheduledActivities = todaysActivities.isEmpty
-
-        var streakDays = 0
-        var incremented = false
-        if hasNoScheduledActivities {
-            incremented = MentalTrainingStreakStore.registerDailyTrainerStreakIfNeeded(on: today, calendar: calendar)
-            streakDays = await StreakComputation.days(endingOn: today, agendaService: agendaService, calendar: calendar)
+    private func finalizeLossFlow(score: Int) async {
+        let qualifiesForStreak = score >= MentalTrainerService.trainerScoreThresholdForDailyStreak
+        if qualifiesForStreak {
+            let today = Date()
+            let todaysActivities = await agendaService.listActivities(on: today, calendar: calendar)
+            if todaysActivities.isEmpty {
+                _ = MentalTrainingStreakStore.registerDailyTrainerStreakIfNeeded(on: today, calendar: calendar)
+            }
         }
-
+        let bestScore = await mentalService.bestScore()
         await MainActor.run {
-            shouldShowStreakAfterWin = hasNoScheduledActivities
-            trainerStreakDays = streakDays
-            trainerStreakIncrementedToday = incremented
-            trainerAlertStep = .win
+            lossAlertMessage = "Tu intento fue de \(score) aciertos. Tu mejor intento histórico es \(bestScore)."
+            trainerAlertStep = .loss
         }
+    }
+
+    private func startCountdown(deadline: Date) {
+        countdownTask?.cancel()
+        countdownTask = Task {
+            while !Task.isCancelled {
+                let seconds = max(Int(deadline.timeIntervalSinceNow.rounded(.up)), 0)
+                await MainActor.run {
+                    remainingSeconds = seconds
+                }
+                if seconds <= 0 {
+                    await answerTimeoutIfNeeded()
+                    return
+                }
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+            }
+        }
+    }
+
+    @MainActor
+    private func answerTimeoutIfNeeded() async {
+        guard hasStarted, !questionAnswered, !sessionCompleted, !isGameOver else { return }
+        await answer(optionIndex: -1, answerDate: Date())
     }
 }
 
@@ -1791,6 +1786,8 @@ private enum MentalTrainingStreakStore {
 }
 
 private enum StreakComputation {
+    private static let mentalTrainingCompletionThreshold = 5
+
     static func days(endingOn day: Date, agendaService: AgendaService, calendar: Calendar) async -> Int {
         var count = 0
         var cursor = calendar.startOfDay(for: day)
@@ -1811,16 +1808,16 @@ private enum StreakComputation {
                 ? .allScheduledActivitiesCompleted
                 : .incompleteDay
         }
-        return (MentalTrainingStreakStore.hasDailyTrainerStreak(on: day, calendar: calendar)
-            || MentalTrainingStreakStore.completionCount(on: day, calendar: calendar) >= 5)
+        let hasStreakQualification = MentalTrainingStreakStore.hasDailyTrainerStreak(on: day, calendar: calendar)
+            || MentalTrainingStreakStore.completionCount(on: day, calendar: calendar) >= mentalTrainingCompletionThreshold
+        return hasStreakQualification
             ? .mentalTrainingOnNoAgendaDay
             : .incompleteDay
     }
 }
 
 private enum TrainerAlertStep: String, Identifiable {
-    case win
-    case streakInfo
+    case loss
 
     var id: String { rawValue }
 }

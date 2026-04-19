@@ -194,12 +194,10 @@ private extension AIConversationService {
 
     func triviaGenerationPrompt(count: Int, categories: [TriviaCategory], difficulty: Int) -> String {
         let categoryTokens = categories.map(\.rawValue).joined(separator: ", ")
-        let randomSeed = UUID().uuidString
         return """
         Genera \(count) preguntas de trivia aleatorias en español.
         Categorías permitidas: \(categoryTokens).
         Dificultad aproximada de 1 a 5: \(difficulty).
-        Semilla de aleatoriedad: \(randomSeed)
 
         Responde ÚNICAMENTE en JSON válido con este formato exacto:
         {

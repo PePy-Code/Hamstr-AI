@@ -201,14 +201,14 @@ func triviaGameOverAtFirstFail() async throws {
     )
 
     _ = try await service.startSession(questionCount: 10)
-    let failFeedback = await service.submitAnswer(optionIndex: 1, answeredAt: baseDate.addingTimeInterval(1))
+    let failFeedback = try await service.submitAnswer(optionIndex: 1, answeredAt: baseDate.addingTimeInterval(1))
     #expect(failFeedback?.isCorrect == false)
     #expect(failFeedback?.isGameOver == true)
     #expect(failFeedback?.isWin == false)
 }
 
-@Test("Trivia se gana al llegar a 8 respuestas correctas")
-func triviaWinsAtEightCorrectAnswers() async throws {
+@Test("Trivia continúa después de 8 aciertos y no repite preguntas")
+func triviaContinuesAfterEightAndAvoidsRepeats() async throws {
     let baseDate = Date(timeIntervalSince1970: 1_710_259_200)
     let service = MentalTrainerService(
         intelligence: MockIntelligence(questionCount: 20),
@@ -216,15 +216,38 @@ func triviaWinsAtEightCorrectAnswers() async throws {
     )
 
     _ = try await service.startSession(questionCount: 20)
-    var finalFeedback: TriviaFeedback?
-    for second in 0..<8 {
-        finalFeedback = await service.submitAnswer(optionIndex: 0, answeredAt: baseDate.addingTimeInterval(Double(second)))
+    var prompts = Set<String>()
+    if let first = await service.currentQuestion() {
+        prompts.insert(first.prompt)
     }
+    var finalFeedback: TriviaFeedback?
+    for second in 0..<12 {
+        finalFeedback = try await service.submitAnswer(optionIndex: 0, answeredAt: baseDate.addingTimeInterval(Double(second)))
+        if let next = await service.currentQuestion() {
+            prompts.insert(next.prompt)
+        }
+    }
+    let session = await service.activeSession
 
     #expect(finalFeedback?.isCorrect == true)
-    #expect(finalFeedback?.isWin == true)
     #expect(finalFeedback?.isGameOver == false)
-    #expect(await service.activeSession == nil)
+    #expect(await service.activeSession != nil)
+    #expect(session?.attempt.correctAnswers == 12)
+    #expect(prompts.count == 13)
+}
+
+@Test("Trivia usa timeout de 15 segundos por pregunta")
+func triviaUsesFifteenSecondTimeout() async throws {
+    let baseDate = Date(timeIntervalSince1970: 1_710_259_200)
+    let service = MentalTrainerService(
+        intelligence: MockIntelligence(questionCount: 10),
+        dateProvider: FixedDateProvider(now: baseDate)
+    )
+
+    let session = try await service.startSession(questionCount: 10)
+    let validFeedback = try await service.submitAnswer(optionIndex: 0, answeredAt: session.deadline.addingTimeInterval(-1))
+
+    #expect(validFeedback?.isCorrect == true)
 }
 
 @Test("Notificación cambia según haya actividades o no")

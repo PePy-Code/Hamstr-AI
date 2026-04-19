@@ -66,7 +66,7 @@ Si no hay key, el servicio usa fuentes abiertas (DuckDuckGo/Wikipedia) y fallbac
   - prioriza orientación y fuentes de estudio.
 - **Entrenador mental (trivia)**
   - preguntas de opción múltiple,
-  - termina al primer error o al ganar con 8 aciertos seguidos.
+  - continúa en tiempo real y termina al primer error.
 - **Motor de racha**
   - sube por actividades del día completadas,
   - o por sesión mental válida en día sin agenda.
