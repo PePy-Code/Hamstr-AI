@@ -31,10 +31,14 @@ public struct OpenSourceKnowledgeService: OpenSourceKnowledgeProviding {
         guard !cleanQuery.isEmpty else { return nil }
 
         let queryCandidates = normalizedQueryCandidates(from: cleanQuery)
+        let webEvidence = await collectWebEvidence(from: queryCandidates)
+        let webLinks = extractLinks(from: webEvidence)
 
-        if let answer = try? await groqAnswer(for: cleanQuery) {
+        if let answer = try? await groqAnswer(for: cleanQuery, webEvidence: webEvidence) {
             let trimmed = answer.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmed.isEmpty { return trimmed }
+            if !trimmed.isEmpty {
+                return ensureHyperlinks(in: trimmed, links: webLinks)
+            }
         }
 
         for candidate in queryCandidates {
@@ -54,9 +58,20 @@ public struct OpenSourceKnowledgeService: OpenSourceKnowledgeProviding {
         return nil
     }
 
-    private func groqAnswer(for query: String) async throws -> String? {
+    private func groqAnswer(for query: String, webEvidence: [String]) async throws -> String? {
         guard let key = groqAPIKey, !key.isEmpty else { return nil }
         guard let url = URL(string: "https://api.groq.com/openai/v1/chat/completions") else { return nil }
+        let normalizedEvidence = webEvidence
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        let evidenceBlock: String
+        if normalizedEvidence.isEmpty {
+            evidenceBlock = "No se recuperaron fuentes web en tiempo real para esta consulta."
+        } else {
+            evidenceBlock = normalizedEvidence.prefix(3).enumerated().map { index, item in
+                "\(index + 1). \(item)"
+            }.joined(separator: "\n")
+        }
 
         let requestPayload = GroqChatRequest(
             model: groqModel,
@@ -68,10 +83,21 @@ public struct OpenSourceKnowledgeService: OpenSourceKnowledgeProviding {
                     No resuelvas tareas, ejercicios, exámenes o trabajos completos.
                     Si el usuario pide resolver algo directamente, rechaza de forma amable y ofrece fuentes directas de estudio (URLs completas) relacionadas con su consulta.
                     En inicio de actividad, prioriza compartir fuentes directas confiables cuando existan; si no hay fuentes claras, responde con un saludo amigable.
+                    Si cuentas con enlaces de fuentes, inclúyelos como hipervínculos en formato markdown: [texto](https://...).
                     Si no sabes algo, dilo con honestidad.
                     """
                 ),
-                .init(role: "user", content: query)
+                .init(
+                    role: "user",
+                    content: """
+                    Consulta del usuario: \(query)
+
+                    Contexto de navegación web recuperado:
+                    \(evidenceBlock)
+
+                    Si en el contexto hay URLs, inclúyelas al responder.
+                    """
+                )
             ],
             temperature: 0.2,
             maxTokens: 320
@@ -204,6 +230,52 @@ public struct OpenSourceKnowledgeService: OpenSourceKnowledgeProviding {
             return text
         }
         return text + "\n\nNota: Si prefieres, puedo reformular esta respuesta en español."
+    }
+
+    private func collectWebEvidence(from candidates: [String]) async -> [String] {
+        var evidence: [String] = []
+        for candidate in candidates {
+            if let ddg = try? await duckDuckGoAnswer(for: candidate) {
+                let cleaned = ddg.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !cleaned.isEmpty {
+                    evidence.append(cleaned)
+                    break
+                }
+            }
+        }
+        for candidate in candidates {
+            if let wiki = try? await wikipediaAnswer(for: candidate) {
+                let cleaned = wiki.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !cleaned.isEmpty {
+                    evidence.append(cleaned)
+                    break
+                }
+            }
+        }
+        return evidence
+    }
+
+    private func extractLinks(from evidence: [String]) -> [String] {
+        let pattern = #"https?://[^\s\)\]\}>,]+"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { return [] }
+        var links: [String] = []
+        for entry in evidence {
+            let range = NSRange(entry.startIndex..<entry.endIndex, in: entry)
+            for match in regex.matches(in: entry, options: [], range: range) {
+                guard let swiftRange = Range(match.range, in: entry) else { continue }
+                links.append(String(entry[swiftRange]))
+            }
+        }
+        var seen = Set<String>()
+        return links.filter { seen.insert($0).inserted }
+    }
+
+    private func ensureHyperlinks(in response: String, links: [String]) -> String {
+        guard !links.isEmpty else { return response }
+        let hasAnyLink = response.contains("http://") || response.contains("https://")
+        if hasAnyLink { return response }
+        let markdownLinks = links.prefix(3).map { "- [Fuente web](\($0))" }.joined(separator: "\n")
+        return response + "\n\nFuentes web:\n" + markdownLinks
     }
 }
 

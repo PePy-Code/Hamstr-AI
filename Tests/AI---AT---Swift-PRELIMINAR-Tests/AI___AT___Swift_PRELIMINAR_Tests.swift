@@ -435,7 +435,6 @@ func aiConversationServiceDefaultUsesOpenSourceProvider() async throws {
 }
 
 @Test("OpenSourceKnowledgeService soporta preguntas en frase completa y extrae keywords")
-@MainActor
 func openSourceKnowledgeServiceHandlesNaturalLanguageQuestions() async throws {
     let session = makeMockedSession()
 
@@ -470,7 +469,6 @@ func openSourceKnowledgeServiceHandlesNaturalLanguageQuestions() async throws {
 }
 
 @Test("OpenSourceKnowledgeService usa Groq y responde en español cuando hay API key")
-@MainActor
 func openSourceKnowledgeServiceUsesGroqWhenConfigured() async throws {
     let session = makeMockedSession()
     var sawGroqRequest = false
@@ -511,6 +509,56 @@ func openSourceKnowledgeServiceUsesGroqWhenConfigured() async throws {
 
     #expect(didSeeGroqRequest)
     #expect(answer?.contains("fue un científico") == true)
+}
+
+@Test("OpenSourceKnowledgeService agrega hipervínculos cuando Groq no los devuelve")
+func openSourceKnowledgeServiceAddsHyperlinksToGroqReplyWhenMissing() async throws {
+    let session = makeMockedSession()
+
+    MockURLProtocol.requestHandler = { request in
+        let url = try #require(request.url)
+        if url.absoluteString.contains("api.groq.com/openai/v1/chat/completions") {
+            let payload: [String: Any] = [
+                "choices": [
+                    [
+                        "message": [
+                            "role": "assistant",
+                            "content": "Albert Einstein fue un físico teórico."
+                        ]
+                    ]
+                ]
+            ]
+            return (200, try JSONSerialization.data(withJSONObject: payload))
+        }
+
+        if url.absoluteString.contains("api.duckduckgo.com") {
+            let payload: [String: Any] = [
+                "AbstractText": "Resumen breve sobre Albert Einstein.",
+                "AbstractURL": "https://es.wikipedia.org/wiki/Albert_Einstein",
+                "RelatedTopics": []
+            ]
+            return (200, try JSONSerialization.data(withJSONObject: payload))
+        }
+
+        if url.absoluteString.contains("es.wikipedia.org/w/api.php") {
+            let payload: [Any] = [
+                "albert einstein",
+                ["Albert Einstein"],
+                ["Científico teórico del siglo XX."],
+                ["https://es.wikipedia.org/wiki/Albert_Einstein"]
+            ]
+            return (200, try JSONSerialization.data(withJSONObject: payload))
+        }
+
+        throw URLError(.badURL)
+    }
+    defer { MockURLProtocol.requestHandler = nil }
+
+    let service = OpenSourceKnowledgeService(session: session, groqAPIKey: "test-key")
+    let answer = await service.answer(for: "quien fue albert einstein?")
+
+    #expect(answer?.contains("Fuentes web:") == true)
+    #expect(answer?.contains("[Fuente web](https://es.wikipedia.org/wiki/Albert_Einstein)") == true)
 }
 
 private struct MockIntelligence: AIConversationProviding {
