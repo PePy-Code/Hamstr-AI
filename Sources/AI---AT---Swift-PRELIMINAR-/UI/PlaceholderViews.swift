@@ -746,6 +746,7 @@ private struct ActivityEditSheet: View {
     @State private var typeRawValue: String
     @State private var scheduledAt: Date
     @State private var errorMessage: String?
+    @State private var shouldConfirmDelete = false
 
     init(
         agendaService: AgendaService,
@@ -779,7 +780,7 @@ private struct ActivityEditSheet: View {
                         Task { await save() }
                     }
                     Button("Eliminar actividad", role: .destructive) {
-                        Task { await delete() }
+                        shouldConfirmDelete = true
                     }
                 }
             }
@@ -798,6 +799,14 @@ private struct ActivityEditSheet: View {
                 Button("OK", role: .cancel) { errorMessage = nil }
             } message: {
                 Text(errorMessage ?? "")
+            }
+            .alert("Eliminar actividad", isPresented: $shouldConfirmDelete) {
+                Button("Cancelar", role: .cancel) {}
+                Button("Eliminar", role: .destructive) {
+                    Task { await delete() }
+                }
+            } message: {
+                Text("Esta acción no se puede deshacer.")
             }
         }
     }
