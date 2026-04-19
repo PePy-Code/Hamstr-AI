@@ -116,10 +116,6 @@ public struct AIConversationService: AIConversationProviding {
 }
 
 private extension AIConversationService {
-    static let openingPhraseRegex: NSRegularExpression? = try? NSRegularExpression(
-        pattern: #"(?i)^\s*(¡?\s*hola!?|claro|por supuesto|entiendo|genial|perfecto|buena pregunta|excelente pregunta)\s*[,!:.-]*\s*"#
-    )
-
     func startSupportPrompt(for context: String) -> String {
         """
         Inicio de actividad de estudio: \(context).
@@ -206,10 +202,12 @@ private extension AIConversationService {
         text = text.replacingOccurrences(of: #"\n{3,}"#, with: "\n\n", options: .regularExpression)
         text = text.replacingOccurrences(of: #"[ \t]{2,}"#, with: " ", options: .regularExpression)
 
+        let paragraphs = text.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
         var compactParagraphs: [String] = []
         var seenNormalizedParagraphs = Set<String>()
-        for paragraph in text.components(separatedBy: "\n").map({ $0.trimmingCharacters(in: .whitespacesAndNewlines) }) where !paragraph.isEmpty {
+        for paragraph in paragraphs where !paragraph.isEmpty {
             let cleanedParagraph = stripCommonOpeningPhrase(from: paragraph)
+            guard !cleanedParagraph.isEmpty else { continue }
             let normalized = cleanedParagraph.lowercased()
             guard !seenNormalizedParagraphs.contains(normalized) else { continue }
             seenNormalizedParagraphs.insert(normalized)
@@ -222,17 +220,21 @@ private extension AIConversationService {
     }
 
     func stripCommonOpeningPhrase(from text: String) -> String {
-        guard let openingRegex = Self.openingPhraseRegex else {
-            return text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "" }
+
+        let openingPhrases = [
+            "hola", "¡hola!", "claro", "por supuesto", "entiendo",
+            "genial", "perfecto", "buena pregunta", "excelente pregunta"
+        ]
+        let lowered = trimmed.lowercased()
+        for phrase in openingPhrases where lowered.hasPrefix(phrase) {
+            let phraseEnd = trimmed.index(trimmed.startIndex, offsetBy: phrase.count, limitedBy: trimmed.endIndex) ?? trimmed.endIndex
+            var remainder = String(trimmed[phraseEnd...])
+            remainder = remainder.drop(while: { $0.isWhitespace || ",!:.-".contains($0) }).description
+            return remainder.trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        let fullRange = NSRange(text.startIndex..<text.endIndex, in: text)
-        guard let firstMatch = openingRegex.firstMatch(in: text, options: [], range: fullRange),
-              firstMatch.range.location == 0,
-              let range = Range(firstMatch.range, in: text) else {
-            return text.trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-        let trimmed = String(text[range.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? text.trimmingCharacters(in: .whitespacesAndNewlines) : trimmed
+        return trimmed
     }
 
     func triviaGenerationPrompt(count: Int, categories: [TriviaCategory], difficulty: Int) -> String {
