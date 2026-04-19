@@ -389,6 +389,22 @@ func appleIntelligenceServiceFallsBackWhenOpenSourceFails() async throws {
     #expect(!answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 }
 
+@Test("AppleIntelligenceService automático prioriza agente externo open source")
+func appleIntelligenceServiceAutomaticUsesOpenSourceProvider() async throws {
+    let service = AppleIntelligenceService(
+        openSourceKnowledge: MockOpenSourceKnowledge(answer: "Respuesta externa")
+    )
+
+    let answer = try await service.chatReply(
+        userMessage: "Explícame la mitocondria",
+        activityTitle: "Biología celular",
+        topic: "Células",
+        type: .study
+    )
+
+    #expect(answer == "Respuesta externa")
+}
+
 private struct MockIntelligence: AppleIntelligenceProviding {
     let questionCount: Int
 
