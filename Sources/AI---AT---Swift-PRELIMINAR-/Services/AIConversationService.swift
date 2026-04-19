@@ -153,8 +153,25 @@ public struct AIConversationService: AIConversationProviding {
 private extension AIConversationService {
     enum MascotMessageConfig {
         static let upcomingHorizonSeconds: TimeInterval = 6 * 60 * 60
-        static let maxMessageLength = 180
+        static let maxMessageLength = 200
         static let urgentActivityThresholdMinutes = 90
+
+        static let mascotMoods: [String] = [
+            "entusiasta y lleno de energía",
+            "tranquilo y filosófico",
+            "travieso con humor sutil",
+            "cálido y paternal",
+            "inspirador y poético",
+            "directo y práctico",
+            "misterioso y curioso",
+            "orgulloso del estudiante",
+            "gracioso con una pizca de sabiduría",
+            "soñador pero concreto"
+        ]
+
+        static func randomMood() -> String {
+            mascotMoods.randomElement() ?? mascotMoods[0]
+        }
     }
 
     func startSupportPrompt(for context: String) -> String {
@@ -292,27 +309,31 @@ private extension AIConversationService {
             return "- \(activity.title) (\(dayLabel) \(formatter.string(from: activity.scheduledAt)))"
         }.joined(separator: "\n")
 
+        let mood = MascotMessageConfig.randomMood()
+        let pending = (todayActivities + tomorrowActivities)
+            .filter { $0.status != .completed && $0.status != .failed }.count
+
         return """
-        Eres una mascota académica estilo app educativa (tono cercano, alegre y de confianza).
-        Escribe UN SOLO mensaje corto en español (máximo \(MascotMessageConfig.maxMessageLength) caracteres), sin markdown, sin links, sin listas.
+        Eres Chispa, una pequeña mascota sabia y entrañable, como Pepe Grillo: cercana, algo filósofa, con chispa de humor y mucho cariño.
+        Tu misión es acompañar al estudiante con un mensaje fresco y genuino cada vez que abre la app.
 
-        Objetivo del mensaje:
-        - motivar al estudiante a usar el Trainer,
-        - recordar si hay una actividad cercana a su hora de entrega,
-        - incluir un tip breve de estudio cuando sea natural.
+        Hoy tu humor es: \(mood).
 
-        Datos:
-        - Racha actual: \(streakDays) días.
-        - Actividades de hoy: \(todayActivities.count).
-        - Actividades de mañana: \(tomorrowActivities.count).
+        Contexto del estudiante:
+        - Racha activa: \(streakDays) día(s).
+        - Actividades pendientes hoy + mañana: \(pending).
         - Hora actual: \(formatter.string(from: now)).
+        \(upcomingRows.isEmpty ? "" : "\nActividades próximas (en menos de 6 h):\n\(upcomingRows)")
 
-        Actividades próximas (si existen):
-        \(upcomingRows.isEmpty ? "- Ninguna en próximas 6 horas." : upcomingRows)
-
-        Regla de prioridad:
-        1) Si hay actividad próxima, prioriza recordatorio concreto con hora/título.
-        2) Si no hay, invita a usar el Trainer y da mini tip de enfoque.
+        Instrucciones de escritura:
+        - Escribe UN solo mensaje en español, máximo \(MascotMessageConfig.maxMessageLength) caracteres.
+        - Sin markdown, sin links, sin listas.
+        - Varía el inicio, el tono y los emojis en cada respuesta: nunca empieces igual dos veces.
+        - Si hay actividad próxima, avísale con cariño y un poco de urgencia.
+        - Si la racha es alta (7+), celébralo con entusiasmo.
+        - Si no hay nada urgente, sorpréndele: un tip inesperado, una metáfora, una pregunta retórica o un guiño de humor.
+        - Puedes hablar de Chispa en tercera persona ocasionalmente, o en primera.
+        - Lo único prohibido: repetir la misma estructura de mensaje dos veces seguidas.
         """
     }
 
@@ -336,17 +357,54 @@ private extension AIConversationService {
         if let next = upcomingActivities.first {
             let minutes = max(Int(next.scheduledAt.timeIntervalSince(now) / 60), 0)
             if minutes <= MascotMessageConfig.urgentActivityThresholdMinutes {
-                return "👀 ¡Ojo! En \(minutes) min toca \"\(next.title)\". Ciérralo y luego te lanzas al Trainer."
+                let urgent = [
+                    "👀 Oye, en \(minutes) min toca \"\(next.title)\"... ¡Chispa confía en ti!",
+                    "⏰ \(minutes) minutos para \"\(next.title)\". Respira, enfócate y tú puedes.",
+                    "🎯 Misión en \(minutes) min: \"\(next.title)\". ¡Tú ya sabes lo que hay que hacer!",
+                    "🔔 Psst... \"\(next.title)\" llama en \(minutes) min. ¡Que no te agarre desprevenido!"
+                ]
+                return urgent.randomElement()!
             }
-            return "🕒 Próxima misión: \"\(next.title)\". Prepárate con 10 min de enfoque y después un round de Trainer."
+            let soon = [
+                "🕒 Antes de que te relajes demasiado: \"\(next.title)\" está en camino. Prepara el terreno.",
+                "📌 Próxima parada: \"\(next.title)\". Chispa ya tiene el cronómetro listo.",
+                "🌱 Un poco de preparación ahora para \"\(next.title)\" te ahorra estrés después.",
+                "🗂️ \"\(next.title)\" se acerca. Échale un vistazo rápido y llegas con ventaja."
+            ]
+            return soon.randomElement()!
         }
-        if todayActivities.isEmpty && tomorrowActivities.isEmpty {
-            return "🐭 ¿Un mini reto? Haz 1 ronda de Trainer y luego 20 min de estudio con pausas cortas."
-        }
+
         if streakDays >= 7 {
-            return "🔥 Vas con todo (\(streakDays) días). Mantén el ritmo: 1 ronda de Trainer y tip rápido, repasa en bloques de 25 min."
+            let celebration = [
+                "🔥 \(streakDays) días seguidos, ¡eso no es casualidad! Chispa te mira con orgullo.",
+                "🏆 \(streakDays) días de racha. Los grillos no aplaudimos, pero si pudiéramos...",
+                "⚡ \(streakDays) días y contando. ¡Deja que el Trainer añada otro escalón hoy!",
+                "🌟 \(streakDays) días. Chispa dice: la constancia construye castillos de conocimiento."
+            ]
+            return celebration.randomElement()!
         }
-        return "💪 Vamos paso a paso: abre el Trainer para activar foco y usa la regla 25/5 para estudiar sin saturarte."
+
+        if todayActivities.isEmpty && tomorrowActivities.isEmpty {
+            let free = [
+                "🌿 Día sin agenda, mente libre. ¿Y si le das al Trainer solo 5 minutos?",
+                "🎲 Sin compromisos hoy. Es el momento perfecto para explorar el Trainer sin prisa.",
+                "💭 Agenda en blanco... ¿Qué tal un round de trivia para calentar neuronas?",
+                "🐛 Chispa dice: los días tranquilos son los mejores para aprender algo nuevo."
+            ]
+            return free.randomElement()!
+        }
+
+        let general = [
+            "💡 Un paso pequeño hoy vale más que un salto perfecto mañana. ¡Dale!",
+            "🧠 El Trainer espera. 5 minutos bastan para despertar al cerebro dormido.",
+            "🌀 La técnica Pomodoro: 25 min de enfoque, 5 de descanso. Chispa lo aprueba.",
+            "🎵 Estudiar tiene su ritmo. Encuentra el tuyo y el tiempo vuelta solo.",
+            "🔑 ¿Sabes qué abre todas las puertas? La constancia. Y tú ya la tienes.",
+            "🌈 Cada actividad que cierras es una ficha más en tu tablero. ¡Mueve ficha!",
+            "🦗 Chispa estuvo leyendo: 3 repasos espaciados fijan más que 1 hora seguida.",
+            "🎯 Foco + pausa + foco: la receta secreta de Chispa para el día de hoy."
+        ]
+        return general.randomElement()!
     }
 }
 

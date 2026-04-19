@@ -92,6 +92,9 @@ public struct HomeView: View {
             .onAppear {
                 Task { await refreshSummary() }
             }
+            .onDisappear {
+                aiPetSupportMessage = nil
+            }
             .task {
                 guard !hasLoaded else { return }
                 hasLoaded = true
@@ -314,12 +317,27 @@ public struct HomeView: View {
 
     private var petSupportFallbackMessage: String {
         if streakState.days >= 7 {
-            return "¡Lo estás haciendo genial! Tu constancia está dando resultados."
+            let msgs = [
+                "🔥 \(streakState.days) días seguidos, ¡Chispa está impresionada!",
+                "⚡ \(streakState.days) días de racha. ¡Hoy suma uno más!",
+                "🌟 Tu constancia habla por ti: \(streakState.days) días en marcha."
+            ]
+            return msgs.randomElement()!
         }
         if todayActivities.isEmpty {
-            return "Hoy puedes avanzar un poco con una actividad corta para mantener el ritmo."
+            let msgs = [
+                "🌿 Agenda libre hoy. ¿Le damos al Trainer?",
+                "🎲 Día tranquilo: momento ideal para explorar algo nuevo.",
+                "🐛 Chispa dice: los días sin tareas son para aprender por curiosidad."
+            ]
+            return msgs.randomElement()!
         }
-        return "Paso a paso: inicia una actividad y enfócate unos minutos."
+        let msgs = [
+            "💡 Un paso pequeño hoy vale más que un salto mañana.",
+            "🧠 Chispa cargando consejo... mientras tanto, ¡abre una actividad!",
+            "🎯 Foco, pausa, foco: la receta de Chispa para hoy."
+        ]
+        return msgs.randomElement()!
     }
 
     private func statusColor(for status: ActivityStatus) -> Color {

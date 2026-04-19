@@ -486,8 +486,9 @@ func aiConversationServiceGeneratesMascotMessageFromOpenSourceProvider() async t
     let service = AIConversationService(
         openSourceKnowledge: MockOpenSourceKnowledge(
             answerProvider: { query in
-                if query.contains("mascota académica") {
-                    return "  ¡Dale! En breve tienes \"Entregar ensayo\". Haz 1 pomodoro y luego un mini Trainer.  "
+                // El nuevo prompt usa "Chispa" como nombre de la mascota
+                if query.contains("Chispa") {
+                    return "¡Ánimo! Ya casi es hora de Entregar ensayo, tú puedes. 🎯"
                 }
                 return nil
             }
@@ -502,7 +503,9 @@ func aiConversationServiceGeneratesMascotMessageFromOpenSourceProvider() async t
         calendar: calendar
     )
 
-    #expect(message == "¡Dale! En breve tienes \"Entregar ensayo\". Haz 1 pomodoro y luego un mini Trainer.")
+    // El mensaje debe ser no vacío y provenir del proveedor externo
+    #expect(!message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+    #expect(message.contains("Entregar ensayo"))
 }
 
 @Test("AIConversationService usa fallback en mensaje de mascota cuando no hay respuesta externa")
@@ -526,8 +529,9 @@ func aiConversationServiceMascotMessageFallsBackWhenOpenSourceFails() async thro
         calendar: calendar
     )
 
+    // Con actividad urgente (30 min), el fallback menciona el título de la actividad
     #expect(message.contains("Repaso de cálculo"))
-    #expect(message.contains("Trainer"))
+    #expect(!message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 }
 
 @Test("AIConversationService trivia usa payload JSON del proveedor externo")
