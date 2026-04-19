@@ -27,6 +27,10 @@ public struct OpenSourceKnowledgeService: OpenSourceKnowledgeProviding {
     }
 
     public func answer(for query: String) async -> String? {
+        await answer(for: query, history: [])
+    }
+
+    public func answer(for query: String, history: [ConversationTurn]) async -> String? {
         let cleanQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanQuery.isEmpty else { return nil }
 
@@ -34,7 +38,7 @@ public struct OpenSourceKnowledgeService: OpenSourceKnowledgeProviding {
         let webEvidence = await collectWebEvidence(from: queryCandidates)
         let webLinks = extractLinks(from: webEvidence)
 
-        if let answer = try? await groqAnswer(for: cleanQuery, webEvidence: webEvidence) {
+        if let answer = try? await groqAnswer(for: cleanQuery, history: history, webEvidence: webEvidence) {
             let trimmed = answer.trimmingCharacters(in: .whitespacesAndNewlines)
             if !trimmed.isEmpty {
                 return ensureHyperlinks(in: trimmed, links: webLinks)
@@ -58,7 +62,7 @@ public struct OpenSourceKnowledgeService: OpenSourceKnowledgeProviding {
         return nil
     }
 
-    private func groqAnswer(for query: String, webEvidence: [String]) async throws -> String? {
+    private func groqAnswer(for query: String, history: [ConversationTurn], webEvidence: [String]) async throws -> String? {
         guard let key = groqAPIKey, !key.isEmpty else { return nil }
         guard let url = URL(string: "https://api.groq.com/openai/v1/chat/completions") else { return nil }
         let normalizedEvidence = webEvidence
@@ -73,35 +77,41 @@ public struct OpenSourceKnowledgeService: OpenSourceKnowledgeProviding {
             }.joined(separator: "\n")
         }
 
+        let systemMessage = GroqChatMessage(
+            role: "system",
+            content: """
+            Eres Roedor, la mascota IA de este app — un roedor amigable, curioso y directo que apoya a estudiantes.
+            Tu tono es cercano y natural, como un amigo que sabe del tema, no un asistente corporativo.
+            Responde siempre en español. Sé breve y concreto: di lo esencial sin relleno innecesario.
+            Deja una línea en blanco entre párrafos o bloques de ideas para que sea fácil de leer.
+            Usa listas cortas (•) solo cuando realmente ayude a organizar la información.
+            No resuelvas tareas, ejercicios, exámenes o trabajos completos — orienta al estudiante con pistas y fuentes.
+            Si el usuario pide resolver algo directamente, rechaza con amabilidad y ofrece fuentes directas de estudio (URLs completas).
+            Si cuentas con enlaces de fuentes, inclúyelos en formato markdown: [texto](https://...).
+            Si no sabes algo, dilo con honestidad y sugiere dónde buscar.
+            """
+        )
+
+        // Include up to the last 10 turns of conversation history so the model has context.
+        let recentHistory = history.suffix(10).map { turn in
+            GroqChatMessage(role: turn.role.rawValue, content: turn.content)
+        }
+
+        let userMessage = GroqChatMessage(
+            role: "user",
+            content: """
+            Consulta del usuario: \(query)
+
+            Contexto de navegación web recuperado:
+            \(evidenceBlock)
+
+            Si en el contexto hay URLs, inclúyelas al responder.
+            """
+        )
+
         let requestPayload = GroqChatRequest(
             model: groqModel,
-            messages: [
-                .init(
-                    role: "system",
-                    content: """
-                    Eres Roedor, la mascota IA de este app — un roedor amigable, curioso y directo que apoya a estudiantes.
-                    Tu tono es cercano y natural, como un amigo que sabe del tema, no un asistente corporativo.
-                    Responde siempre en español. Sé breve y concreto: di lo esencial sin relleno innecesario.
-                    Deja una línea en blanco entre párrafos o bloques de ideas para que sea fácil de leer.
-                    Usa listas cortas (•) solo cuando realmente ayude a organizar la información.
-                    No resuelvas tareas, ejercicios, exámenes o trabajos completos — orienta al estudiante con pistas y fuentes.
-                    Si el usuario pide resolver algo directamente, rechaza con amabilidad y ofrece fuentes directas de estudio (URLs completas).
-                    Si cuentas con enlaces de fuentes, inclúyelos en formato markdown: [texto](https://...).
-                    Si no sabes algo, dilo con honestidad y sugiere dónde buscar.
-                    """
-                ),
-                .init(
-                    role: "user",
-                    content: """
-                    Consulta del usuario: \(query)
-
-                    Contexto de navegación web recuperado:
-                    \(evidenceBlock)
-
-                    Si en el contexto hay URLs, inclúyelas al responder.
-                    """
-                )
-            ],
+            messages: [systemMessage] + recentHistory + [userMessage],
             temperature: 0.2,
             maxTokens: nil
         )

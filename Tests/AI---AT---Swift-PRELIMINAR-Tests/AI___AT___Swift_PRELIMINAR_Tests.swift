@@ -686,6 +686,7 @@ private struct MockIntelligence: AIConversationProviding {
 
     func chatReply(
         userMessage: String,
+        history: [ConversationTurn],
         activityTitle: String,
         topic: String,
         type: ActivityType
@@ -722,6 +723,11 @@ private struct MockOpenSourceKnowledge: OpenSourceKnowledgeProviding {
     }
 
     func answer(for query: String) async -> String? {
+        guard !query.isEmpty else { return nil }
+        return answerProvider(query)
+    }
+
+    func answer(for query: String, history: [ConversationTurn]) async -> String? {
         guard !query.isEmpty else { return nil }
         return answerProvider(query)
     }

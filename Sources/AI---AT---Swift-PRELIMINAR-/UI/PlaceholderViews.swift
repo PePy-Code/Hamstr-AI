@@ -460,8 +460,10 @@ private struct PersonalChatbotView: View {
         let contextualMessage = agendaContext.isEmpty
             ? text
             : "\(text)\n\nContexto de agenda personal:\n\(agendaContext)"
+        let history = conversationHistory(excluding: text)
         let modelReply = (try? await intelligence.chatReply(
             userMessage: contextualMessage,
+            history: history,
             activityTitle: "Agenda personal",
             topic: agendaContext.isEmpty ? "Organización y foco" : agendaContext,
             type: .other
@@ -471,6 +473,24 @@ private struct PersonalChatbotView: View {
             return "Cuéntame qué necesitas organizar hoy 🐭"
         }
         return cleaned
+    }
+
+    /// Converts the current messages array into ConversationTurn history,
+    /// excluding the most recently appended user message (which is passed separately).
+    private func conversationHistory(excluding latestUserText: String) -> [ConversationTurn] {
+        var turns = messages.compactMap { msg -> ConversationTurn? in
+            switch msg.role {
+            case .user:
+                return ConversationTurn(role: .user, content: msg.text)
+            case .assistant:
+                return ConversationTurn(role: .assistant, content: msg.text)
+            }
+        }
+        // Drop the last user turn — it was just appended and equals latestUserText.
+        if turns.last?.role == .user, turns.last?.content.hasPrefix(latestUserText) == true {
+            turns.removeLast()
+        }
+        return turns
     }
 
     private func summaryIntroMessage() -> String {
@@ -799,8 +819,10 @@ private struct ActivityLaunchPlaceholderView: View {
     }
 
     private func assistantResponse(for text: String) async -> String {
+        let history = conversationHistory(excluding: text)
         let modelReply = (try? await intelligence.chatReply(
             userMessage: text,
+            history: history,
             activityTitle: activity.title,
             topic: normalizedTopic,
             type: activity.type
@@ -810,6 +832,23 @@ private struct ActivityLaunchPlaceholderView: View {
             return "Dame más contexto y te respondo de forma concreta 🐭"
         }
         return cleaned
+    }
+
+    /// Converts the current messages array into ConversationTurn history,
+    /// excluding the most recently appended user message (which is passed separately).
+    private func conversationHistory(excluding latestUserText: String) -> [ConversationTurn] {
+        var turns = messages.compactMap { msg -> ConversationTurn? in
+            switch msg.role {
+            case .user:
+                return ConversationTurn(role: .user, content: msg.text)
+            case .assistant:
+                return ConversationTurn(role: .assistant, content: msg.text)
+            }
+        }
+        if turns.last?.role == .user, turns.last?.content == latestUserText {
+            turns.removeLast()
+        }
+        return turns
     }
 
     #if canImport(PhotosUI)

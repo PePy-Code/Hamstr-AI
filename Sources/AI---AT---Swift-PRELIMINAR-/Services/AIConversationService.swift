@@ -1,9 +1,5 @@
 import Foundation
 
-public protocol OpenSourceKnowledgeProviding: Sendable {
-    func answer(for query: String) async -> String?
-}
-
 public struct AIConversationService: AIConversationProviding {
     private let fallback = LocalFallbackGenerator()
     private let openSourceKnowledge: OpenSourceKnowledgeProviding
@@ -38,6 +34,7 @@ public struct AIConversationService: AIConversationProviding {
 
     public func chatReply(
         userMessage: String,
+        history: [ConversationTurn],
         activityTitle: String,
         topic: String,
         type: ActivityType
@@ -53,7 +50,7 @@ public struct AIConversationService: AIConversationProviding {
         let asksToSolveDirectly = isDirectSolveRequest(cleanedMessage)
         if asksToSolveDirectly {
             let sourceQuery = sourceOnlyPrompt(for: displayContext)
-            if let sourceAnswer = await openSourceKnowledge.answer(for: sourceQuery) {
+            if let sourceAnswer = await openSourceKnowledge.answer(for: sourceQuery, history: history) {
                 let directSources = extractDirectSources(from: sourceAnswer)
                 if !directSources.isEmpty {
                     return refusalWithSources(directSources)
@@ -67,13 +64,13 @@ public struct AIConversationService: AIConversationProviding {
         }
 
         let guardedQuery = guidedChatPrompt(for: query, activityTitle: cleanedTitle, topic: cleanedTopic)
-        if let openAnswer = await openSourceKnowledge.answer(for: query),
+        if let openAnswer = await openSourceKnowledge.answer(for: query, history: history),
            !openAnswer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             let cleaned = cleanChatResponse(openAnswer)
             if !cleaned.isEmpty { return cleaned }
         }
 
-        if let guardedOpenAnswer = await openSourceKnowledge.answer(for: guardedQuery),
+        if let guardedOpenAnswer = await openSourceKnowledge.answer(for: guardedQuery, history: history),
            !guardedOpenAnswer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             let cleaned = cleanChatResponse(guardedOpenAnswer)
             if !cleaned.isEmpty { return cleaned }
