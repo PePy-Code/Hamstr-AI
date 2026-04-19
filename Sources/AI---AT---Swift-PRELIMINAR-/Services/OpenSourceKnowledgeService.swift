@@ -91,7 +91,7 @@ public struct OpenSourceKnowledgeService: OpenSourceKnowledgeProviding {
 
     private static func makeSession() -> URLSession {
         let configuration = URLSessionConfiguration.default
-        // Keep external API calls responsive in chat UX while allowing short network jitter.
+        // Keep external API calls responsive in chat UX while allowing short network delays.
         configuration.timeoutIntervalForRequest = 10
         configuration.timeoutIntervalForResource = 20
         return URLSession(configuration: configuration)

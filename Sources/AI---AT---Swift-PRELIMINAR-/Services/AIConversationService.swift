@@ -45,9 +45,10 @@ public struct AIConversationService: AIConversationProviding {
         let cleanedMessage = userMessage.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanedTopic = topic.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanedTitle = activityTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        let query = cleanedMessage.isEmpty ? [cleanedTitle, cleanedTopic]
+        let fallbackQuery = [cleanedTitle, cleanedTopic]
             .filter { !$0.isEmpty }
-            .joined(separator: " - ") : cleanedMessage
+            .joined(separator: " - ")
+        let query = cleanedMessage.isEmpty ? fallbackQuery : cleanedMessage
         let displayContext = query.isEmpty ? "tu actividad actual" : query
         if let openAnswer = await openSourceKnowledge.answer(for: query),
            !openAnswer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
