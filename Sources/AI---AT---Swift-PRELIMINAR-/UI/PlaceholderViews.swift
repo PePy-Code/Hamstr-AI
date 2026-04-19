@@ -70,7 +70,7 @@ func appLocale() -> Locale {
     Locale(identifier: AppPreferences.localeIdentifier)
 }
 
-private struct PersonalChatbotView: View {
+struct PersonalChatbotView: View {
     let todayActivities: [Activity]
     let tomorrowActivities: [Activity]
     let streakDays: Int
@@ -276,7 +276,7 @@ private struct PersonalChatbotView: View {
     }
 }
 
-private struct ActivityLaunchPlaceholderView: View {
+struct ActivityLaunchPlaceholderView: View {
     let agendaService: AgendaService
     let activity: Activity
     let onDidUpdateActivityState: () -> Void
@@ -847,7 +847,7 @@ private struct PomodoroTransitionAlert: Identifiable {
     let message: String
 }
 
-private struct ActivityEditSheet: View {
+struct ActivityEditSheet: View {
     let agendaService: AgendaService
     let activity: Activity
     let onDidComplete: () -> Void
@@ -965,7 +965,7 @@ private struct ActivityEditSheet: View {
     }
 }
 
-private struct WeeklyAgendaView: View {
+struct WeeklyAgendaView: View {
     let agendaService: AgendaService
 
     @State private var weekStart: Date
@@ -1247,7 +1247,7 @@ private struct WeeklyAgendaView: View {
     }
 }
 
-private struct AddActivitySheet: View {
+struct AddActivitySheet: View {
     let agendaService: AgendaService
     let defaultDate: Date
     let onDidAdd: () -> Void
@@ -2040,7 +2040,7 @@ public struct MentalTrainerView: View {
     }
 }
 
-private struct AppSettingsView: View {
+struct AppSettingsView: View {
     private struct TimerSoundOption: Identifiable {
         let id: Int
         let title: String
