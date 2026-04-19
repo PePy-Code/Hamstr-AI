@@ -11,7 +11,7 @@ public struct StreakEngine {
         let dayStart = calendar.startOfDay(for: input.day)
         let hasActivities = !input.scheduledActivities.isEmpty
         let allCompleted = hasActivities && input.scheduledActivities.allSatisfy { $0.status == .completed }
-        let hasValidMentalTraining = !hasActivities && input.validMentalTrainingCompletions >= 5
+        let hasValidMentalTraining = !hasActivities && input.validMentalTrainingCompletions >= 1
 
         let reason: StreakValidationReason
         let incrementsStreak: Bool

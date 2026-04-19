@@ -24,7 +24,7 @@ func streakIncrementsWhenAllActivitiesComplete() async throws {
     #expect(updated.reason == .allScheduledActivitiesCompleted)
 }
 
-@Test("Streak sube en día sin agenda solo con 5 respuestas correctas")
+@Test("Streak sube en día sin agenda con una sesión válida de trainer")
 func streakUsesMentalTrainerOnNoAgendaDay() async throws {
     let engine = StreakEngine()
     let day = Date(timeIntervalSince1970: 1_710_086_400)
@@ -32,14 +32,14 @@ func streakUsesMentalTrainerOnNoAgendaDay() async throws {
 
     let updated = engine.evaluate(
         current: previous,
-        input: DailyEvaluationInput(day: day, scheduledActivities: [], validMentalTrainingCompletions: 5)
+        input: DailyEvaluationInput(day: day, scheduledActivities: [], validMentalTrainingCompletions: 1)
     )
 
     #expect(updated.days == 5)
     #expect(updated.reason == .mentalTrainingOnNoAgendaDay)
 }
 
-@Test("Streak no sube en día sin agenda con menos de 5 respuestas correctas")
+@Test("Streak no sube en día sin agenda sin sesión válida de trainer")
 func streakDoesNotUseMentalTrainerWhenCompletionsAreUnderThreshold() async throws {
     let engine = StreakEngine()
     let day = Date(timeIntervalSince1970: 1_710_086_400)
@@ -47,7 +47,7 @@ func streakDoesNotUseMentalTrainerWhenCompletionsAreUnderThreshold() async throw
 
     let updated = engine.evaluate(
         current: previous,
-        input: DailyEvaluationInput(day: day, scheduledActivities: [], validMentalTrainingCompletions: 4)
+        input: DailyEvaluationInput(day: day, scheduledActivities: [], validMentalTrainingCompletions: 0)
     )
 
     #expect(updated.days == 4)
@@ -94,7 +94,7 @@ func streakSupportsMixedValidDays() async throws {
         input: DailyEvaluationInput(
             day: dayTwo,
             scheduledActivities: [],
-            validMentalTrainingCompletions: 5
+            validMentalTrainingCompletions: 1
         )
     )
 
@@ -192,8 +192,8 @@ func overdueNotStartedActivityBecomesFailed() async throws {
     #expect(updated?.status == .failed)
 }
 
-@Test("Trivia muestra game over al primer fallo después de 5 aciertos")
-func triviaGameOverAfterFiveCorrectAndOneFail() async throws {
+@Test("Trivia termina al primer fallo")
+func triviaGameOverAtFirstFail() async throws {
     let baseDate = Date(timeIntervalSince1970: 1_710_259_200)
     let service = MentalTrainerService(
         intelligence: MockIntelligence(questionCount: 10),
@@ -201,15 +201,53 @@ func triviaGameOverAfterFiveCorrectAndOneFail() async throws {
     )
 
     _ = try await service.startSession(questionCount: 10)
-    for second in 0..<5 {
-        let feedback = await service.submitAnswer(optionIndex: 0, answeredAt: baseDate.addingTimeInterval(Double(second)))
-        #expect(feedback?.isCorrect == true)
-        #expect(feedback?.isGameOver == false)
-    }
-
-    let failFeedback = await service.submitAnswer(optionIndex: 1, answeredAt: baseDate.addingTimeInterval(6))
+    let failFeedback = try await service.submitAnswer(optionIndex: 1, answeredAt: baseDate.addingTimeInterval(1))
     #expect(failFeedback?.isCorrect == false)
     #expect(failFeedback?.isGameOver == true)
+    #expect(failFeedback?.isWin == false)
+}
+
+@Test("Trivia continúa después de 8 aciertos y no repite preguntas")
+func triviaContinuesAfterEightAndAvoidsRepeats() async throws {
+    let baseDate = Date(timeIntervalSince1970: 1_710_259_200)
+    let service = MentalTrainerService(
+        intelligence: MockIntelligence(questionCount: 20),
+        dateProvider: FixedDateProvider(now: baseDate)
+    )
+
+    _ = try await service.startSession(questionCount: 20)
+    var prompts = Set<String>()
+    if let first = await service.currentQuestion() {
+        prompts.insert(first.prompt)
+    }
+    var finalFeedback: TriviaFeedback?
+    for second in 0..<12 {
+        finalFeedback = try await service.submitAnswer(optionIndex: 0, answeredAt: baseDate.addingTimeInterval(Double(second)))
+        if let next = await service.currentQuestion() {
+            prompts.insert(next.prompt)
+        }
+    }
+    let session = await service.activeSession
+
+    #expect(finalFeedback?.isCorrect == true)
+    #expect(finalFeedback?.isGameOver == false)
+    #expect(await service.activeSession != nil)
+    #expect(session?.attempt.correctAnswers == 12)
+    #expect(prompts.count == 13)
+}
+
+@Test("Trivia usa timeout de 15 segundos por pregunta")
+func triviaUsesFifteenSecondTimeout() async throws {
+    let baseDate = Date(timeIntervalSince1970: 1_710_259_200)
+    let service = MentalTrainerService(
+        intelligence: MockIntelligence(questionCount: 10),
+        dateProvider: FixedDateProvider(now: baseDate)
+    )
+
+    let session = try await service.startSession(questionCount: 10)
+    let validFeedback = try await service.submitAnswer(optionIndex: 0, answeredAt: session.deadline.addingTimeInterval(-1))
+
+    #expect(validFeedback?.isCorrect == true)
 }
 
 @Test("Notificación cambia según haya actividades o no")
@@ -432,6 +470,54 @@ func aiConversationServiceDefaultUsesOpenSourceProvider() async throws {
     )
 
     #expect(answer == "Respuesta externa")
+}
+
+@Test("AIConversationService trivia usa payload JSON del proveedor externo")
+func aiConversationServiceTriviaUsesGeneratedPayload() async throws {
+    let triviaJSON = """
+    {
+      "questions": [
+        {
+          "category": "math",
+          "prompt": "¿Cuánto es 3 + 5 * 2?",
+          "options": ["16", "13", "10", "8"],
+          "correctOptionIndex": 1,
+          "imageURL": null
+        },
+        {
+          "category": "history",
+          "prompt": "¿Qué civilización construyó Machu Picchu?",
+          "options": ["Maya", "Inca", "Azteca", "Romana"],
+          "correctOptionIndex": 1,
+          "imageURL": null
+        }
+      ]
+    }
+    """
+    let service = AIConversationService(openSourceKnowledge: MockOpenSourceKnowledge(answer: triviaJSON))
+
+    let questions = try await service.triviaQuestions(
+        count: 2,
+        categories: [.math, .history],
+        difficulty: 2
+    )
+
+    #expect(questions.count == 2)
+    #expect(questions.allSatisfy { $0.options.count == 4 })
+}
+
+@Test("AIConversationService fallback de trivia soporta un banco más grande")
+func aiConversationServiceFallbackTriviaSupportsLargerBank() async throws {
+    let service = AIConversationService(openSourceKnowledge: MockOpenSourceKnowledge(answer: nil))
+
+    let questions = try await service.triviaQuestions(
+        count: 20,
+        categories: TriviaCategory.allCases,
+        difficulty: 2
+    )
+
+    #expect(questions.count == 20)
+    #expect(Set(questions.map(\.prompt)).count == questions.count)
 }
 
 @Suite(.serialized)
