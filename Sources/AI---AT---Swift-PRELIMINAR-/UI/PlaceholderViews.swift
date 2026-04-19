@@ -30,7 +30,7 @@ private final class PomodoroNotificationDelegate: NSObject, UNUserNotificationCe
 }
 
 // One-shot setup: request permission and register the foreground delegate.
-private func requestPomodoroNotificationPermission() {
+func requestPomodoroNotificationPermission() {
     guard AppPreferences.notificationsEnabled else { return }
     let center = UNUserNotificationCenter.current()
     center.delegate = PomodoroNotificationDelegate.shared
@@ -38,7 +38,7 @@ private func requestPomodoroNotificationPermission() {
 }
 
 // Schedule an immediate local notification.  Safe to call from any thread.
-private func schedulePomodoroNotification(title: String, body: String) {
+func schedulePomodoroNotification(title: String, body: String) {
     guard AppPreferences.notificationsEnabled else { return }
     guard !AppPreferences.isWithinQuietHours(date: Date()) else { return }
     let center = UNUserNotificationCenter.current()
@@ -55,470 +55,19 @@ private func schedulePomodoroNotification(title: String, body: String) {
 }
 #endif
 
-private func playConfiguredPomodoroSound() {
+func playConfiguredPomodoroSound() {
     #if canImport(AudioToolbox)
     guard let soundID = AppPreferences.timerSoundSystemID else { return }
     AudioServicesPlaySystemSound(SystemSoundID(soundID))
     #endif
 }
 
-private func localizedText(es: String, en: String) -> String {
+func localizedText(es: String, en: String) -> String {
     AppPreferences.language == .english ? en : es
 }
 
-private func appLocale() -> Locale {
+func appLocale() -> Locale {
     Locale(identifier: AppPreferences.localeIdentifier)
-}
-
-public struct HomeView: View {
-    @State private var todayActivities: [Activity] = []
-    @State private var tomorrowActivities: [Activity] = []
-    @State private var streakState = StreakState()
-    @State private var aiPetSupportMessage: String?
-    @State private var hasLoaded = false
-    @State private var pendingStartActivity: Activity?
-    @State private var activeActivity: Activity?
-    @State private var editingActivity: Activity?
-    @State private var openWeeklyAgenda = false
-    @State private var showQuickAddActivity = false
-    @State private var openPersonalChatbot = false
-    @State private var openSettings = false
-    private let agendaService = AgendaService(persistence: LocalAgendaDatabase())
-    private let intelligence = AIConversationService()
-    private let calendar = Calendar.current
-
-    public init() {}
-
-    public var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 14) {
-                    HStack {
-                        HStack(spacing: 8) {
-                            Text("🔥")
-                            Text("Racha")
-                                .fontWeight(.semibold)
-                            Text("\(streakState.days) días")
-                                .font(.subheadline.weight(.bold))
-                        }
-                        Spacer()
-                        NavigationLink {
-                            MentalTrainerView()
-                        } label: {
-                            Label("Trainer", systemImage: "brain.head.profile")
-                        }
-                        .buttonStyle(.borderedProminent)
-                    }
-                    .padding()
-                    .background(Color(.secondarySystemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-
-                    dailyGoalsCard
-
-                    Button {
-                        openPersonalChatbot = true
-                    } label: {
-                        HStack(alignment: .top, spacing: 10) {
-                            Text("🐭")
-                                .font(.largeTitle)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Roedor")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.secondary)
-                                Text(displayedPetSupportMessage)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                        }
-                        .padding()
-                        .background(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color(.separator), lineWidth: 1)
-                        )
-                    }
-                    .buttonStyle(.plain)
-
-                    HStack(spacing: 10) {
-                        Button {
-                            showQuickAddActivity = true
-                        } label: {
-                            Label("Nueva actividad", systemImage: "plus.circle.fill")
-                                .font(.subheadline.weight(.semibold))
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
-
-                        Button {
-                            openWeeklyAgenda = true
-                        } label: {
-                            Label("Agenda completa", systemImage: "calendar.badge.clock")
-                                .font(.subheadline.weight(.semibold))
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-                    }
-
-                    menuAgendaTable
-                }
-                .padding()
-            }
-            .navigationTitle("Menú principal")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        openSettings = true
-                    } label: {
-                        Image(systemName: "gearshape.fill")
-                    }
-                    .accessibilityLabel("Ajustes")
-                }
-            }
-            .onAppear {
-                #if canImport(UserNotifications)
-                requestPomodoroNotificationPermission()
-                #endif
-                Task { await refreshSummary() }
-            }
-            .onDisappear {
-                aiPetSupportMessage = nil
-            }
-            .task {
-                guard !hasLoaded else { return }
-                hasLoaded = true
-                await seedInitialActivitiesIfNeeded()
-                await refreshSummary()
-            }
-            .refreshable {
-                await refreshSummary()
-            }
-            .alert(
-                "¿Deseas iniciar esta actividad?",
-                isPresented: Binding(
-                    get: { pendingStartActivity != nil },
-                    set: { newValue in
-                        if !newValue { pendingStartActivity = nil }
-                    }
-                ),
-                presenting: pendingStartActivity
-            ) { activity in
-                Button("No", role: .cancel) {
-                    pendingStartActivity = nil
-                }
-                Button("Sí") {
-                    activeActivity = activity
-                    pendingStartActivity = nil
-                }
-            } message: { activity in
-                Text("Actividad: \(activity.title)")
-            }
-            .sheet(item: $editingActivity) { activity in
-                ActivityEditSheet(
-                    agendaService: agendaService,
-                    activity: activity,
-                    onDidComplete: {
-                        Task { await refreshSummary() }
-                    }
-                )
-            }
-            .navigationDestination(isPresented: $openWeeklyAgenda) {
-                WeeklyAgendaView(agendaService: agendaService)
-            }
-            .navigationDestination(isPresented: $openPersonalChatbot) {
-                PersonalChatbotView(
-                    todayActivities: todayActivities,
-                    tomorrowActivities: tomorrowActivities,
-                    streakDays: streakState.days
-                )
-            }
-            .navigationDestination(isPresented: $openSettings) {
-                AppSettingsView()
-            }
-            .navigationDestination(item: $activeActivity) { activity in
-                ActivityLaunchPlaceholderView(
-                    agendaService: agendaService,
-                    activity: activity,
-                    onDidUpdateActivityState: {
-                        Task { await refreshSummary() }
-                    }
-                )
-            }
-            .sheet(isPresented: $showQuickAddActivity) {
-                AddActivitySheet(
-                    agendaService: agendaService,
-                    defaultDate: Date()
-                ) {
-                    Task { await refreshSummary() }
-                }
-            }
-        }
-        .preferredColorScheme(preferredColorScheme)
-        .environment(\.dynamicTypeSize, preferredDynamicTypeSize)
-    }
-
-    private var menuAgendaTable: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Agenda")
-                .font(.headline)
-            HStack(spacing: 8) {
-                Text("Hora")
-                    .frame(width: 60, alignment: .leading)
-                    .font(.caption.weight(.semibold))
-                Button(action: { openWeeklyAgenda = true }) {
-                    Text("Hoy \(shortDate(Date()))")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .font(.caption.weight(.semibold))
-                }
-                .buttonStyle(.plain)
-                Button(action: { openWeeklyAgenda = true }) {
-                    Text("Mañana \(shortDate(nextDay))")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .font(.caption.weight(.semibold))
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.bottom, 4)
-
-            ForEach(0...24, id: \.self) { hour in
-                HStack(spacing: 8) {
-                    Button(action: { openWeeklyAgenda = true }) {
-                        Text(String(format: "%02d:00", hour))
-                            .font(.caption.monospacedDigit())
-                            .frame(width: 60, alignment: .leading)
-                    }
-                    .buttonStyle(.plain)
-                    agendaCell(for: activitiesAt(hour: hour, in: todayActivities))
-                    agendaCell(for: activitiesAt(hour: hour, in: tomorrowActivities))
-                }
-                .padding(.vertical, 2)
-            }
-        }
-        .padding()
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-
-    private var dailyGoalsCard: some View {
-        let completedActivities = todayActivities.filter { $0.status == .completed }.count
-        let trainerSessions = MentalTrainingStreakStore.completionCount(on: Date(), calendar: calendar)
-        let estimatedStudyMinutes = completedActivities * AppPreferences.pomodoroWorkMinutes
-        let minutesGoal = max(AppPreferences.dailyGoalMinutes, 1)
-        let activitiesGoal = max(AppPreferences.dailyGoalActivitiesCompleted, 1)
-        let trainerGoal = max(AppPreferences.dailyGoalTrainerSessions, 1)
-        let summary = localizedText(
-            es: "Meta diaria: \(estimatedStudyMinutes)/\(minutesGoal) min · \(completedActivities)/\(activitiesGoal) actividades · trainer \(trainerSessions)/\(trainerGoal)",
-            en: "Daily goal: \(estimatedStudyMinutes)/\(minutesGoal) min · \(completedActivities)/\(activitiesGoal) activities · trainer \(trainerSessions)/\(trainerGoal)"
-        )
-        return VStack(alignment: .leading, spacing: 6) {
-            Text(localizedText(es: "🎯 Objetivo diario", en: "🎯 Daily goal"))
-                .font(.subheadline.weight(.semibold))
-            Text(summary)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        }
-        .padding()
-        .background(Color(.tertiarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-
-    @ViewBuilder
-    private func agendaCell(for activities: [Activity]) -> some View {
-        if !activities.isEmpty {
-            VStack(alignment: .leading, spacing: 4) {
-                ForEach(activities) { activity in
-                    let isCompleted = activity.status == .completed
-                    HStack(spacing: 6) {
-                        Button {
-                            pendingStartActivity = activity
-                        } label: {
-                            HStack(spacing: 6) {
-                                Circle()
-                                    .fill(statusColor(for: activity.status))
-                                    .frame(width: 8, height: 8)
-                                Text("\(hourMinute(activity.scheduledAt)) \(activity.title)")
-                                    .lineLimit(1)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                            .padding(6)
-                            .background(statusColor(for: activity.status).opacity(0.2))
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(isCompleted)
-
-                        Button {
-                            editingActivity = activity
-                        } label: {
-                            Image(systemName: "pencil")
-                                .font(.caption.weight(.semibold))
-                                .padding(6)
-                        }
-                        .buttonStyle(.borderless)
-                        .disabled(isCompleted)
-                    }
-                }
-            }
-        } else {
-            Button(action: { openWeeklyAgenda = true }) {
-                Text("—")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .foregroundStyle(.tertiary)
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    private func refreshSummary() async {
-        let today = Date()
-        let tomorrow = nextDay
-        let activities = await agendaService.listActivities(on: today)
-        let tomorrowItems = await agendaService.listActivities(on: tomorrow)
-        let updatedStreakDays = await StreakComputation.days(endingOn: today, agendaService: agendaService, calendar: calendar)
-        let todayReason = await StreakComputation.validationReason(for: today, agendaService: agendaService, calendar: calendar)
-        let generatedPetMessage = await intelligence.mascotSupportMessage(
-            todayActivities: activities,
-            tomorrowActivities: tomorrowItems,
-            streakDays: updatedStreakDays,
-            now: today,
-            calendar: calendar
-        )
-        await MainActor.run {
-            self.todayActivities = activities
-            self.tomorrowActivities = tomorrowItems
-            self.aiPetSupportMessage = generatedPetMessage
-            self.streakState = StreakState(
-                days: updatedStreakDays,
-                lastValidatedDay: updatedStreakDays > 0 ? calendar.startOfDay(for: today) : nil,
-                reason: updatedStreakDays > 0 ? todayReason : .incompleteDay
-            )
-        }
-    }
-
-    private func seedInitialActivitiesIfNeeded() async {
-        let existingToday = await agendaService.listActivities(on: Date())
-        let existingTomorrow = await agendaService.listActivities(on: nextDay)
-        guard existingToday.isEmpty, existingTomorrow.isEmpty else { return }
-
-        let today = Date()
-        let tomorrow = nextDay
-        _ = await agendaService.createActivity(
-            title: "Repaso de matemáticas",
-            topic: "Derivadas",
-            type: .study,
-            scheduledAt: calendar.date(bySettingHour: 9, minute: 0, second: 0, of: today) ?? today
-        )
-        _ = await agendaService.createActivity(
-            title: "Entregar tarea",
-            topic: "Álgebra",
-            type: .task,
-            scheduledAt: calendar.date(bySettingHour: 18, minute: 0, second: 0, of: today) ?? today
-        )
-        _ = await agendaService.createActivity(
-            title: "Lectura corta",
-            topic: "Historia",
-            type: .other,
-            scheduledAt: calendar.date(bySettingHour: 11, minute: 0, second: 0, of: tomorrow) ?? tomorrow
-        )
-    }
-
-    private var nextDay: Date {
-        calendar.date(byAdding: .day, value: 1, to: Date()) ?? Date()
-    }
-
-    private func activitiesAt(hour: Int, in activities: [Activity]) -> [Activity] {
-        activities
-            .filter { calendar.component(.hour, from: $0.scheduledAt) == hour }
-            .sorted {
-                if $0.scheduledAt != $1.scheduledAt {
-                    return $0.scheduledAt < $1.scheduledAt
-                }
-                if statusSortOrder($0.status) != statusSortOrder($1.status) {
-                    return statusSortOrder($0.status) < statusSortOrder($1.status)
-                }
-                return $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
-            }
-    }
-
-    private func shortDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "dd/MM"
-        formatter.locale = appLocale()
-        return formatter.string(from: date)
-    }
-
-    private func hourMinute(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        formatter.locale = appLocale()
-        return formatter.string(from: date)
-    }
-
-    private func statusSortOrder(_ status: ActivityStatus) -> Int {
-        switch status {
-        case .inProgress:
-            return 0
-        case .pending:
-            return 1
-        case .notStarted:
-            return 2
-        case .failed:
-            return 3
-        case .completed:
-            return 4
-        }
-    }
-
-    private var preferredColorScheme: ColorScheme? {
-        switch AppPreferences.visualTheme {
-        case .system: nil
-        case .light: .light
-        case .dark: .dark
-        }
-    }
-
-    private var preferredDynamicTypeSize: DynamicTypeSize {
-        switch AppPreferences.fontScale {
-        case .small: .small
-        case .normal: .large
-        case .large: .xLarge
-        case .extraLarge: .xxLarge
-        }
-    }
-
-    private var displayedPetSupportMessage: String {
-        let generated = aiPetSupportMessage?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if !generated.isEmpty {
-            return generated
-        }
-        return petSupportFallbackMessage
-    }
-
-    private var petSupportFallbackMessage: String {
-        if streakState.days >= 7 {
-            return "Llevas \(streakState.days) días seguidos. Eso es constancia real. 🔥"
-        }
-        if todayActivities.isEmpty {
-            return "Sin actividades hoy. Una pequeña tarea marca la diferencia."
-        }
-        return "Un bloque a la vez. Cada paso suma 🐭"
-    }
-
-    private func statusColor(for status: ActivityStatus) -> Color {
-        switch status {
-        case .completed:
-            return .green
-        case .pending:
-            return .yellow
-        case .notStarted:
-            return .gray.opacity(0.8)
-        case .failed:
-            return .red
-        case .inProgress:
-            return .blue
-        }
-    }
 }
 
 private struct PersonalChatbotView: View {
@@ -1778,10 +1327,13 @@ public struct AgendaView: View {
     @State private var newTypeRawValue = ActivityType.study.rawValue
     @State private var supportMaterialByActivityID: [UUID: [String]] = [:]
     @State private var timerNotificationMessage: NotificationMessage?
-    private let agendaService = AgendaService(persistence: LocalAgendaDatabase())
-    private let notificationService = AppNotifications.service
+    private let dependencies: UIDependencyContainer
+    private var agendaService: AgendaService { dependencies.agendaService }
+    private var notificationService: EngagementNotificationService { dependencies.notificationService }
 
-    public init() {}
+    public init(dependencies: UIDependencyContainer = UIDependencyContainer.makeDefault()) {
+        self.dependencies = dependencies
+    }
 
     public var body: some View {
         VStack(spacing: 12) {
@@ -2167,12 +1719,15 @@ public struct MentalTrainerView: View {
     @State private var lossAlertMessage = ""
     @State private var countdownTask: Task<Void, Never>?
     private let answerRevealDelayNanoseconds: UInt64 = 350_000_000
-    private let mentalService = MentalTrainerService()
-    private let notificationService = AppNotifications.service
-    private let agendaService = AgendaService(persistence: LocalAgendaDatabase())
+    private let dependencies: UIDependencyContainer
+    private var mentalService: MentalTrainerService { dependencies.mentalTrainerService }
+    private var notificationService: EngagementNotificationService { dependencies.notificationService }
+    private var agendaService: AgendaService { dependencies.agendaService }
     private let calendar = Calendar.current
 
-    public init() {}
+    public init(dependencies: UIDependencyContainer = UIDependencyContainer.makeDefault()) {
+        self.dependencies = dependencies
+    }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -2911,7 +2466,7 @@ private enum MentalTrainingStreakStore {
     }
 }
 
-private enum StreakComputation {
+enum StreakComputation {
     // Compatibilidad con sesiones históricas: 5 completadas en un día sin agenda también
     // califican como día válido de racha aunque ahora exista el criterio por score del trainer.
     private static let mentalTrainingCompletionThreshold = 5
