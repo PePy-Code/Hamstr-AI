@@ -66,7 +66,11 @@ public struct AppleIntelligenceService: AppleIntelligenceProviding {
             return reply
         }
 
-        let query = cleanedMessage.isEmpty ? "\(cleanedTitle) \(cleanedTopic)" : cleanedMessage
+        let fallbackQuery = [cleanedTitle, cleanedTopic]
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " - ")
+        let query = cleanedMessage.isEmpty ? fallbackQuery : cleanedMessage
         if let openAnswer = await openSourceKnowledge.answer(for: query),
            !openAnswer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return openAnswer
