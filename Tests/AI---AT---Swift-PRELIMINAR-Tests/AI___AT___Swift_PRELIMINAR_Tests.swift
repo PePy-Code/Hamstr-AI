@@ -472,6 +472,29 @@ func aiConversationServiceDefaultUsesOpenSourceProvider() async throws {
     #expect(answer == "Respuesta externa")
 }
 
+@Test("AIConversationService limpia inicios repetitivos y texto duplicado en chat")
+func aiConversationServiceCleansRepetitiveOpenings() async throws {
+    let noisyAnswer = """
+    Claro, te ayudo con eso.
+
+    Claro, te ayudo con eso.
+
+    Aquí tienes pasos concretos para avanzar.
+    """
+    let service = AIConversationService(openSourceKnowledge: MockOpenSourceKnowledge(answer: noisyAnswer))
+
+    let answer = try await service.chatReply(
+        userMessage: "Ayúdame a organizar esta actividad",
+        activityTitle: "Plan semanal",
+        topic: "Organización",
+        type: .other
+    )
+
+    #expect(!answer.lowercased().hasPrefix("claro"))
+    #expect(answer.contains("Aquí tienes pasos concretos para avanzar."))
+    #expect(answer.components(separatedBy: "te ayudo con eso").count == 2)
+}
+
 @Test("AIConversationService trivia usa payload JSON del proveedor externo")
 func aiConversationServiceTriviaUsesGeneratedPayload() async throws {
     let triviaJSON = """

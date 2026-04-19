@@ -69,12 +69,14 @@ public struct AIConversationService: AIConversationProviding {
         let guardedQuery = guidedChatPrompt(for: query, activityTitle: cleanedTitle, topic: cleanedTopic)
         if let openAnswer = await openSourceKnowledge.answer(for: query),
            !openAnswer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return openAnswer.trimmingCharacters(in: .whitespacesAndNewlines)
+            let cleaned = cleanChatResponse(openAnswer)
+            if !cleaned.isEmpty { return cleaned }
         }
 
         if let guardedOpenAnswer = await openSourceKnowledge.answer(for: guardedQuery),
            !guardedOpenAnswer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return guardedOpenAnswer.trimmingCharacters(in: .whitespacesAndNewlines)
+            let cleaned = cleanChatResponse(guardedOpenAnswer)
+            if !cleaned.isEmpty { return cleaned }
         }
 
         return fallbackChatReply(title: cleanedTitle, context: displayContext)
@@ -186,10 +188,48 @@ private extension AIConversationService {
 
     func fallbackChatReply(title: String, context: String) -> String {
         let safeTitle = title.isEmpty ? "tu actividad" : title
-        return """
+        return cleanChatResponse("""
         Entendido. Puedo ayudarte con "\(safeTitle)" y responder directamente tu consulta sobre "\(context)".
         Si quieres, dime la pregunta exacta o comparte más contexto para darte una respuesta más precisa.
-        """
+        """)
+    }
+
+    func cleanChatResponse(_ rawText: String) -> String {
+        var text = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return "" }
+        text = stripCommonOpeningPhrase(from: text)
+
+        text = text.replacingOccurrences(of: #"\n{3,}"#, with: "\n\n", options: .regularExpression)
+        text = text.replacingOccurrences(of: #"[ \t]{2,}"#, with: " ", options: .regularExpression)
+
+        var compactParagraphs: [String] = []
+        var seenNormalizedParagraphs = Set<String>()
+        for paragraph in text.components(separatedBy: "\n").map({ $0.trimmingCharacters(in: .whitespacesAndNewlines) }) where !paragraph.isEmpty {
+            let cleanedParagraph = stripCommonOpeningPhrase(from: paragraph)
+            let normalized = cleanedParagraph.lowercased()
+            guard !seenNormalizedParagraphs.contains(normalized) else { continue }
+            seenNormalizedParagraphs.insert(normalized)
+            compactParagraphs.append(cleanedParagraph)
+        }
+
+        let compact = compactParagraphs.joined(separator: "\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return compact.isEmpty ? text : compact
+    }
+
+    func stripCommonOpeningPhrase(from text: String) -> String {
+        let openingPattern = #"(?i)^\s*(¡?\s*hola!?|claro|por supuesto|entiendo|genial|perfecto|buena pregunta|excelente pregunta)\s*[,!:.-]*\s*"#
+        guard let openingRegex = try? NSRegularExpression(pattern: openingPattern) else {
+            return text.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        let fullRange = NSRange(text.startIndex..<text.endIndex, in: text)
+        guard let firstMatch = openingRegex.firstMatch(in: text, options: [], range: fullRange),
+              firstMatch.range.location == 0,
+              let range = Range(firstMatch.range, in: text) else {
+            return text.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        let trimmed = String(text[range.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? text.trimmingCharacters(in: .whitespacesAndNewlines) : trimmed
     }
 
     func triviaGenerationPrompt(count: Int, categories: [TriviaCategory], difficulty: Int) -> String {

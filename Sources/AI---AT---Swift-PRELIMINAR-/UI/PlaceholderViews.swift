@@ -17,6 +17,7 @@ public struct HomeView: View {
     @State private var editingActivity: Activity?
     @State private var openWeeklyAgenda = false
     @State private var showQuickAddActivity = false
+    @State private var openPersonalChatbot = false
     private let agendaService = AgendaService(persistence: LocalAgendaDatabase())
     private let calendar = Calendar.current
 
@@ -46,21 +47,26 @@ public struct HomeView: View {
                     .background(Color(.secondarySystemBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
 
-                    HStack(alignment: .top, spacing: 10) {
-                        Text("🐭")
-                            .font(.largeTitle)
-                        Text(petSupportMessage)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                    Button {
+                        openPersonalChatbot = true
+                    } label: {
+                        HStack(alignment: .top, spacing: 10) {
+                            Text("🐭")
+                                .font(.largeTitle)
+                            Text(petSupportMessage)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .padding()
+                        .background(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color(.separator), lineWidth: 1)
+                        )
                     }
-                    .padding()
-                    .background(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color(.separator), lineWidth: 1)
-                    )
+                    .buttonStyle(.plain)
 
                     HStack(spacing: 10) {
                         Button {
@@ -130,6 +136,13 @@ public struct HomeView: View {
             }
             .navigationDestination(isPresented: $openWeeklyAgenda) {
                 WeeklyAgendaView(agendaService: agendaService)
+            }
+            .navigationDestination(isPresented: $openPersonalChatbot) {
+                PersonalChatbotView(
+                    todayActivities: todayActivities,
+                    tomorrowActivities: tomorrowActivities,
+                    streakDays: streakState.days
+                )
             }
             .navigationDestination(item: $activeActivity) { activity in
                 ActivityLaunchPlaceholderView(
@@ -317,6 +330,169 @@ public struct HomeView: View {
         case .inProgress:
             return .blue
         }
+    }
+}
+
+private struct PersonalChatbotView: View {
+    let todayActivities: [Activity]
+    let tomorrowActivities: [Activity]
+    let streakDays: Int
+
+    @State private var messages: [ActivityChatMessage] = []
+    @State private var userInput = ""
+    @State private var hasLoaded = false
+    private let intelligence = AIConversationService()
+
+    var body: some View {
+        VStack(spacing: 12) {
+            chatSection
+            chatComposer
+        }
+        .padding()
+        .navigationTitle("Chatbot personal")
+        .task {
+            guard !hasLoaded else { return }
+            hasLoaded = true
+            await seedWelcomeMessage()
+        }
+    }
+
+    private var chatSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Asistente 🐭")
+                .font(.headline)
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 8) {
+                    ForEach(messages) { message in
+                        HStack {
+                            if message.role == .assistant {
+                                chatBubble(message, alignment: .leading, background: Color(.secondarySystemBackground))
+                                Spacer(minLength: 30)
+                            } else {
+                                Spacer(minLength: 30)
+                                chatBubble(message, alignment: .trailing, background: Color.blue.opacity(0.18))
+                            }
+                        }
+                    }
+                }
+            }
+            .frame(maxHeight: .infinity)
+        }
+    }
+
+    private var chatComposer: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                TextField("Escribe al chatbot...", text: $userInput, axis: .vertical)
+                    .textFieldStyle(.roundedBorder)
+
+                Button("Enviar") {
+                    Task { await sendUserMessage() }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(userInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            Text("Pídele consejos, organización o ayuda para recordar tus actividades.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    @ViewBuilder
+    private func chatBubble(_ message: ActivityChatMessage, alignment: Alignment, background: Color) -> some View {
+        VStack(alignment: alignment == .leading ? .leading : .trailing, spacing: 4) {
+            messageTextView(message.text)
+                .font(.footnote)
+        }
+        .padding(10)
+        .background(background)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    @ViewBuilder
+    private func messageTextView(_ text: String) -> some View {
+        if let markdown = try? AttributedString(
+            markdown: text,
+            options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .full)
+        ) {
+            Text(markdown)
+                .tint(.blue)
+        } else {
+            Text(text)
+        }
+    }
+
+    private func seedWelcomeMessage() async {
+        await MainActor.run {
+            messages = [ActivityChatMessage(role: .assistant, text: summaryIntroMessage())]
+        }
+    }
+
+    private func sendUserMessage() async {
+        let text = userInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+
+        await MainActor.run {
+            messages.append(ActivityChatMessage(role: .user, text: text))
+            userInput = ""
+        }
+
+        let response = await assistantResponse(for: text)
+        await MainActor.run {
+            messages.append(ActivityChatMessage(role: .assistant, text: response))
+        }
+    }
+
+    private func assistantResponse(for text: String) async -> String {
+        let agendaContext = agendaContextText
+        let contextualMessage = agendaContext.isEmpty
+            ? text
+            : "\(text)\n\nContexto de agenda personal:\n\(agendaContext)"
+        let modelReply = (try? await intelligence.chatReply(
+            userMessage: contextualMessage,
+            activityTitle: "Agenda personal",
+            topic: agendaContext.isEmpty ? "Organización y foco" : agendaContext,
+            type: .other
+        )) ?? ""
+        let cleaned = modelReply.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleaned.isEmpty {
+            return "Cuéntame qué necesitas organizar hoy y te respondo con pasos concretos."
+        }
+        return cleaned
+    }
+
+    private func summaryIntroMessage() -> String {
+        let todayPending = todayActivities.filter { $0.status != .completed }.count
+        let tomorrowCount = tomorrowActivities.count
+        let streakText = streakDays > 0 ? "Llevas una racha de \(streakDays) día(s)." : "Aún no tienes racha activa."
+        if todayActivities.isEmpty && tomorrowActivities.isEmpty {
+            return "Estoy aquí para ayudarte a planificar tu día. \(streakText) Si quieres, empezamos creando una actividad pequeña."
+        }
+        return "Te ayudo a organizarte y mantener el enfoque. Hoy te quedan \(todayPending) actividad(es) pendientes y mañana tienes \(tomorrowCount). \(streakText)"
+    }
+
+    private var agendaContextText: String {
+        let today = summarize(activities: todayActivities, dayLabel: "Hoy")
+        let tomorrow = summarize(activities: tomorrowActivities, dayLabel: "Mañana")
+        return [today, tomorrow]
+            .filter { !$0.isEmpty }
+            .joined(separator: "\n")
+    }
+
+    private func summarize(activities: [Activity], dayLabel: String) -> String {
+        guard !activities.isEmpty else { return "" }
+        let sorted = activities.sorted { $0.scheduledAt < $1.scheduledAt }
+        let items = sorted.prefix(5).map { activity in
+            "\(hourAndMinute(activity.scheduledAt)) \(activity.title) [\(activity.status.rawValue)]"
+        }.joined(separator: ", ")
+        return "\(dayLabel): \(items)"
+    }
+
+    private func hourAndMinute(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: date)
     }
 }
 
