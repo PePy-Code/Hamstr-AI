@@ -380,6 +380,9 @@ private struct ActivityLaunchPlaceholderView: View {
     @State private var remainingSeconds = 25 * 60
     @State private var isRunning = true
     @State private var isWorkPhase = true
+    @State private var pomodoroPhaseMessage = "En curso: temporizador de trabajo."
+    private let workDurationSeconds = 25 * 60
+    private let breakDurationSeconds = 5 * 60
     private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     private let intelligence = AIConversationService()
     private let calendar = Calendar.current
@@ -426,13 +429,16 @@ private struct ActivityLaunchPlaceholderView: View {
                 remainingSeconds -= 1
             } else {
                 isWorkPhase.toggle()
-                remainingSeconds = isWorkPhase ? 25 * 60 : 5 * 60
+                remainingSeconds = isWorkPhase ? workDurationSeconds : breakDurationSeconds
                 isRunning = true
                 pomodoroTransitionAlert = PomodoroTransitionAlert(
                     message: isWorkPhase
-                        ? "Descanso finalizado. Inicia un nuevo bloque de trabajo."
-                        : "Trabajo finalizado. Inicia tu descanso corto."
+                        ? "Se terminó el temporizador de descanso (\(formattedTime(breakDurationSeconds))). Se inició automáticamente el temporizador de trabajo (\(formattedTime(workDurationSeconds)))."
+                        : "Se terminó el temporizador de trabajo (\(formattedTime(workDurationSeconds))). Se inició automáticamente el temporizador de descanso (\(formattedTime(breakDurationSeconds)))."
                 )
+                pomodoroPhaseMessage = isWorkPhase
+                    ? "Cambio automático: pasaste de descanso a trabajo."
+                    : "Cambio automático: pasaste de trabajo a descanso."
                 playPomodoroTransitionSound()
             }
         }
@@ -520,6 +526,18 @@ private struct ActivityLaunchPlaceholderView: View {
             Text(formattedTime(remainingSeconds))
                 .font(.title2.monospacedDigit().weight(.bold))
 
+            Text(pomodoroPhaseMessage)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Text(
+                isWorkPhase
+                    ? "Siguiente: descanso (\(formattedTime(breakDurationSeconds)))."
+                    : "Siguiente: trabajo (\(formattedTime(workDurationSeconds)))."
+            )
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+
             HStack(spacing: 10) {
                 Button(isRunning ? "Pausar" : "Iniciar") {
                     isRunning.toggle()
@@ -529,7 +547,8 @@ private struct ActivityLaunchPlaceholderView: View {
                 Button("Reiniciar") {
                     isRunning = false
                     isWorkPhase = true
-                    remainingSeconds = 25 * 60
+                    remainingSeconds = workDurationSeconds
+                    pomodoroPhaseMessage = "Pomodoro reiniciado: listo para trabajo."
                 }
                 .buttonStyle(.bordered)
             }
