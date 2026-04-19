@@ -389,8 +389,8 @@ func appleIntelligenceServiceFallsBackWhenOpenSourceFails() async throws {
     #expect(!answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 }
 
-@Test("AppleIntelligenceService automático prioriza agente externo open source")
-func appleIntelligenceServiceAutomaticUsesOpenSourceProvider() async throws {
+@Test("AppleIntelligenceService por defecto prioriza agente externo open source")
+func appleIntelligenceServiceDefaultUsesOpenSourceProvider() async throws {
     let service = AppleIntelligenceService(
         openSourceKnowledge: MockOpenSourceKnowledge(answer: "Respuesta externa")
     )

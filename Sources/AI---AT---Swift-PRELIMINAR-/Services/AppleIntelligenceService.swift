@@ -5,7 +5,7 @@ public protocol OpenSourceKnowledgeProviding: Sendable {
 }
 
 public enum LocalAgentConfiguration: Sendable {
-    case automatic
+    case externalOnly
     case provided((any LocalAcademicAgentProviding)?)
 }
 
@@ -15,11 +15,11 @@ public struct AppleIntelligenceService: AppleIntelligenceProviding {
     private let openSourceKnowledge: OpenSourceKnowledgeProviding
 
     public init(
-        localAgentConfiguration: LocalAgentConfiguration = .automatic,
+        localAgentConfiguration: LocalAgentConfiguration = .externalOnly,
         openSourceKnowledge: OpenSourceKnowledgeProviding = OpenSourceKnowledgeService()
     ) {
         switch localAgentConfiguration {
-        case .automatic:
+        case .externalOnly:
             self.localAgent = nil
         case let .provided(agent):
             self.localAgent = agent
@@ -61,8 +61,8 @@ public struct AppleIntelligenceService: AppleIntelligenceProviding {
                activityTitle: cleanedTitle,
                topic: cleanedTopic,
                type: type
-            ),
-            !reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+           ),
+           !reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return reply
         }
 
