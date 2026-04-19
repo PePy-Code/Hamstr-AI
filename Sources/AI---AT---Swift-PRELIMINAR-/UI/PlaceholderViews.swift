@@ -2156,14 +2156,12 @@ public struct MentalTrainerView: View {
 
     private func startCountdown(deadline: Date) {
         countdownTask?.cancel()
-        countdownTask = Task {
+        countdownTask = Task { @MainActor in
             while !Task.isCancelled {
                 let seconds = max(Int(deadline.timeIntervalSinceNow.rounded(.up)), 0)
-                await MainActor.run {
-                    remainingSeconds = seconds
-                }
+                remainingSeconds = seconds
                 if seconds <= 0 {
-                    await answerTimeoutIfNeeded()
+                    answerTimeoutIfNeeded()
                     return
                 }
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
@@ -2171,11 +2169,15 @@ public struct MentalTrainerView: View {
         }
     }
 
+    // Must be a non-async @MainActor function so that it fires a NEW independent Task for
+    // answer(). If it were async and awaited from countdownTask, answer() would cancel
+    // countdownTask (its own parent), causing Task.sleep inside pauseForAnswerReveal() to
+    // throw CancellationError and skip the Game Over flow entirely.
     @MainActor
-    private func answerTimeoutIfNeeded() async {
+    private func answerTimeoutIfNeeded() {
         guard hasStarted, !questionAnswered, !sessionCompleted, !isGameOver else { return }
         let forcedTimeoutDate = questionDeadline?.addingTimeInterval(0.001) ?? Date()
-        await answer(optionIndex: -1, answerDate: forcedTimeoutDate)
+        Task { await answer(optionIndex: -1, answerDate: forcedTimeoutDate) }
     }
 
     private func pauseForAnswerReveal() async -> Bool {
