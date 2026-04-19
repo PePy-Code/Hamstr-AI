@@ -6,6 +6,9 @@ import PhotosUI
 #if canImport(AudioToolbox)
 import AudioToolbox
 #endif
+#if canImport(UserNotifications)
+import UserNotifications
+#endif
 
 public struct HomeView: View {
     @State private var todayActivities: [Activity] = []
@@ -433,10 +436,11 @@ private struct ActivityLaunchPlaceholderView: View {
                 isRunning = true
                 pomodoroTransitionAlert = PomodoroTransitionAlert(
                     message: wasWorkPhase
-                        ? "Trabajo finalizado (25 min). Iniciando descanso (5 min)."
-                        : "Descanso finalizado (5 min). Iniciando trabajo (25 min)."
+                        ? "¡Hora de descanso!"
+                        : "¡Hora de trabajo!"
                 )
                 playPomodoroTransitionSound()
+                sendPomodoroPhaseNotification(isBreak: wasWorkPhase)
             }
         }
         .alert(item: $finishAlertStep) { step in
@@ -776,7 +780,25 @@ private struct ActivityLaunchPlaceholderView: View {
 
     private func playPomodoroTransitionSound() {
         #if canImport(AudioToolbox)
-        AudioServicesPlaySystemSound(1057)
+        AudioServicesPlaySystemSound(1005)
+        #endif
+    }
+
+    private func sendPomodoroPhaseNotification(isBreak: Bool) {
+        #if canImport(UserNotifications)
+        let content = UNMutableNotificationContent()
+        content.title = "Pomodoro"
+        content.body = isBreak ? "¡Hora de descanso!" : "¡Hora de trabajo!"
+        content.sound = .default
+        let request = UNNotificationRequest(
+            identifier: "pomodoro-phase-\(UUID().uuidString)",
+            content: content,
+            trigger: nil
+        )
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, _ in
+            guard granted else { return }
+            UNUserNotificationCenter.current().add(request)
+        }
         #endif
     }
 }
@@ -1472,7 +1494,6 @@ public struct PomodoroTimerView: View {
     @State private var remainingSeconds: Int
     @State private var isRunning = false
     @State private var didFinish = false
-    @State private var showFinishedAlert = false
     private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     public init(
@@ -1531,15 +1552,8 @@ public struct PomodoroTimerView: View {
             if remainingSeconds == 0 {
                 isRunning = false
                 didFinish = true
-                showFinishedAlert = true
-                playFinishSound()
                 onTimerFinished?()
             }
-        }
-        .alert("⏰ Pomodoro terminado", isPresented: $showFinishedAlert) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text(title.isEmpty ? "¡Tiempo completado!" : "¡Completaste: \(title)!")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
@@ -1551,12 +1565,6 @@ public struct PomodoroTimerView: View {
         isRunning = false
         didFinish = false
         remainingSeconds = initialSeconds
-    }
-
-    private func playFinishSound() {
-        #if canImport(AudioToolbox)
-        AudioServicesPlaySystemSound(1057)
-        #endif
     }
 
     private func formattedTime(_ totalSeconds: Int) -> String {
