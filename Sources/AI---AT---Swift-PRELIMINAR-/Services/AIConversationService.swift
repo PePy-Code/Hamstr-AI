@@ -270,7 +270,9 @@ private extension AIConversationService {
             .filter { $0.status != .completed && $0.status != .failed }
             .filter {
                 guard $0.scheduledAt >= now, $0.scheduledAt <= horizon else { return false }
-                return calendar.isDateInToday($0.scheduledAt) || calendar.isDateInTomorrow($0.scheduledAt)
+                let tomorrow = calendar.date(byAdding: .day, value: 1, to: now) ?? now
+                return calendar.isDate($0.scheduledAt, inSameDayAs: now)
+                    || calendar.isDate($0.scheduledAt, inSameDayAs: tomorrow)
             }
             .sorted { $0.scheduledAt < $1.scheduledAt }
     }
