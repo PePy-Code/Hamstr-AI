@@ -242,9 +242,7 @@ public struct FoundationModelsLocalAgent: LocalAcademicAgentProviding {
         let prompt = """
         Eres un tutor académico para jóvenes de 15+.
         Responde en español y en máximo 4 líneas.
-        REGLAS:
-        - No resuelvas tareas directamente ni entregues respuestas finales.
-        - Da orientación, pasos y sugerencias prácticas.
+        Da respuestas claras, útiles y directas según lo que solicite el usuario.
         Contexto:
         - Actividad: "\(activityTitle)"
         - Tema: "\(topic)"

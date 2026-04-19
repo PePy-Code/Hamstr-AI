@@ -355,6 +355,40 @@ func localAgentParserHardensTriviaPayload() async throws {
     #expect(parsed[1].imageURL == nil)
 }
 
+@Test("AppleIntelligenceService usa API abierta cuando no hay agente local")
+func appleIntelligenceServiceUsesOpenSourceKnowledgeAnswer() async throws {
+    let service = AppleIntelligenceService(
+        localAgent: nil,
+        openSourceKnowledge: MockOpenSourceKnowledge(answer: "Respuesta abierta")
+    )
+
+    let answer = try await service.chatReply(
+        userMessage: "¿Qué es la fotosíntesis?",
+        activityTitle: "Biología",
+        topic: "Plantas",
+        type: .study
+    )
+
+    #expect(answer == "Respuesta abierta")
+}
+
+@Test("AppleIntelligenceService responde fallback cuando API abierta no devuelve contenido")
+func appleIntelligenceServiceFallsBackWhenOpenSourceFails() async throws {
+    let service = AppleIntelligenceService(
+        localAgent: nil,
+        openSourceKnowledge: MockOpenSourceKnowledge(answer: nil)
+    )
+
+    let answer = try await service.chatReply(
+        userMessage: "Necesito ayuda",
+        activityTitle: "Repaso",
+        topic: "Historia",
+        type: .other
+    )
+
+    #expect(answer.contains("Listo."))
+}
+
 private struct MockIntelligence: AppleIntelligenceProviding {
     let questionCount: Int
 
@@ -389,6 +423,15 @@ private struct MockIntelligence: AppleIntelligenceProviding {
                 correctOptionIndex: 0
             )
         }
+    }
+}
+
+private struct MockOpenSourceKnowledge: OpenSourceKnowledgeProviding {
+    let answer: String?
+
+    func answer(for query: String) async -> String? {
+        _ = query
+        return answer
     }
 }
 

@@ -322,10 +322,6 @@ private struct ActivityLaunchPlaceholderView: View {
     let agendaService: AgendaService
     let activity: Activity
     let onDidUpdateActivityState: () -> Void
-    private static let restrictedRequestTokens = [
-        "resuelve", "hazme la tarea", "haz la tarea",
-        "dame la respuesta", "responde por mí", "hazlo por mí", "solve"
-    ]
 
     @Environment(\.dismiss) private var dismiss
     @State private var hasLoaded = false
@@ -550,7 +546,7 @@ private struct ActivityLaunchPlaceholderView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(userInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
-            Text("La IA no resuelve tareas por ti; solo orienta con apoyo y fuentes.")
+            Text("La IA responde preguntas, explica conceptos y sugiere fuentes abiertas.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -621,9 +617,6 @@ private struct ActivityLaunchPlaceholderView: View {
     private func assistantResponse(for text: String) async -> String {
         let support = (try? await intelligence.supportMaterial(for: normalizedTopic, type: activity.type)) ?? []
         let bulletText = support.isEmpty ? "" : "\n" + support.map { "• \($0)" }.joined(separator: "\n")
-        if isRestrictedRequest(text) {
-            return "Lo siento compañero, no puedo ayudarte con este tipo de solicitudes. Pero aquí hay algunas fuentes que podrían ayudarte:\(bulletText)"
-        }
         let modelReply = (try? await intelligence.chatReply(
             userMessage: text,
             activityTitle: activity.title,
@@ -635,11 +628,6 @@ private struct ActivityLaunchPlaceholderView: View {
             return "Vamos paso a paso con tu actividad. Primero identifica la meta principal y luego avanza por partes pequeñas.\(bulletText)"
         }
         return cleaned + bulletText
-    }
-
-    private func isRestrictedRequest(_ text: String) -> Bool {
-        let lowered = text.lowercased()
-        return Self.restrictedRequestTokens.contains(where: { lowered.contains($0) })
     }
 
     #if canImport(PhotosUI)

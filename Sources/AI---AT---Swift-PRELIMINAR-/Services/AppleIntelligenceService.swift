@@ -1,11 +1,25 @@
 import Foundation
 
+protocol OpenSourceKnowledgeProviding: Sendable {
+    func answer(for query: String) async -> String?
+}
+
 public struct AppleIntelligenceService: AppleIntelligenceProviding {
     private let fallback = LocalFallbackGenerator()
     private let localAgent: LocalAcademicAgentProviding?
+    private let openSourceKnowledge: OpenSourceKnowledgeProviding
 
     public init(localAgent: LocalAcademicAgentProviding? = nil) {
         self.localAgent = localAgent ?? AppleIntelligenceService.makeDefaultLocalAgent()
+        self.openSourceKnowledge = OpenSourceKnowledgeService()
+    }
+
+    init(
+        localAgent: LocalAcademicAgentProviding?,
+        openSourceKnowledge: OpenSourceKnowledgeProviding
+    ) {
+        self.localAgent = localAgent ?? AppleIntelligenceService.makeDefaultLocalAgent()
+        self.openSourceKnowledge = openSourceKnowledge
     }
 
     public func supportMaterial(for topic: String, type: ActivityType) async throws -> [String] {
@@ -42,18 +56,24 @@ public struct AppleIntelligenceService: AppleIntelligenceProviding {
                activityTitle: cleanedTitle,
                topic: cleanedTopic,
                type: type
-           ),
-           !reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            ),
+            !reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return reply
+        }
+
+        let query = cleanedMessage.isEmpty ? "\(cleanedTitle) \(cleanedTopic)" : cleanedMessage
+        if let openAnswer = await openSourceKnowledge.answer(for: query),
+           !openAnswer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return openAnswer
         }
 
         switch type {
         case .task:
-            return "Buena pregunta. Para \"\(cleanedTitle)\", identifica primero la idea principal, luego susténtala con una fuente confiable y cierra con una conclusión breve."
+            return "Claro. Para \"\(cleanedTitle)\", puedo ayudarte a resolver cualquier duda paso a paso, estructurar respuestas y revisar lo que escribas."
         case .study:
-            return "Vamos bien con \"\(cleanedTitle)\". Te recomiendo: 1) resumir el concepto clave, 2) hacer un ejemplo corto, 3) verificar con una pregunta de práctica."
+            return "Perfecto. Sobre \"\(cleanedTitle)\", puedo explicarte conceptos, hacer resúmenes, proponer preguntas de práctica y ayudarte con ejemplos."
         case .other:
-            return "Para avanzar en \"\(cleanedTitle)\", divide el objetivo en pasos pequeños, completa uno por vez y valida el resultado antes de continuar."
+            return "Listo. En \"\(cleanedTitle)\", puedo apoyarte con ideas, redacción, investigación y resolución de dudas en tiempo real."
         }
     }
 
