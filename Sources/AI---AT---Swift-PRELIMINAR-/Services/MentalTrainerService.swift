@@ -29,14 +29,14 @@ public struct ActiveTriviaSession: Sendable {
 }
 
 public actor MentalTrainerService {
-    private let intelligence: AppleIntelligenceProviding
+    private let intelligence: AIConversationProviding
     private let dateProvider: DateProviding
     private(set) var highestGlobalScore: Int = 0
     private(set) var activeSession: ActiveTriviaSession?
     private let questionTimeout: TimeInterval = 10
 
     public init(
-        intelligence: AppleIntelligenceProviding = AppleIntelligenceService(),
+        intelligence: AIConversationProviding = AIConversationService(),
         dateProvider: DateProviding = SystemDateProvider()
     ) {
         self.intelligence = intelligence

@@ -322,10 +322,6 @@ private struct ActivityLaunchPlaceholderView: View {
     let agendaService: AgendaService
     let activity: Activity
     let onDidUpdateActivityState: () -> Void
-    private static let restrictedRequestTokens = [
-        "resuelve", "hazme la tarea", "haz la tarea",
-        "dame la respuesta", "responde por mí", "hazlo por mí", "solve"
-    ]
 
     @Environment(\.dismiss) private var dismiss
     @State private var hasLoaded = false
@@ -342,7 +338,7 @@ private struct ActivityLaunchPlaceholderView: View {
     @State private var isRunning = true
     @State private var isWorkPhase = true
     private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-    private let intelligence = AppleIntelligenceService()
+    private let intelligence = AIConversationService()
     private let calendar = Calendar.current
     #if canImport(PhotosUI)
     @State private var selectedPhotoItem: PhotosPickerItem?
@@ -550,7 +546,7 @@ private struct ActivityLaunchPlaceholderView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(userInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
-            Text("La IA no resuelve tareas por ti; solo orienta con apoyo y fuentes.")
+            Text("La IA responde preguntas, explica conceptos y sugiere fuentes abiertas.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -564,7 +560,7 @@ private struct ActivityLaunchPlaceholderView: View {
                 Label("Imagen adjunta", systemImage: "photo")
                     .font(.caption.weight(.semibold))
             }
-            Text(message.text)
+            messageTextView(message.text)
                 .font(.footnote)
         }
         .padding(10)
@@ -572,35 +568,24 @@ private struct ActivityLaunchPlaceholderView: View {
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
-    private func startSessionAndSeedChat() async {
-        var support: [String] = []
-        if let session = try? await agendaService.startActivity(id: activity.id) {
-            support = session.supportMaterial
-        }
-        if support.isEmpty {
-            support = (try? await intelligence.supportMaterial(for: normalizedTopic, type: activity.type)) ?? []
-        }
-        let intro = initialAssistantMessage(with: support)
-        await MainActor.run {
-            messages = [
-                ActivityChatMessage(role: .assistant, text: intro)
-            ]
+    @ViewBuilder
+    private func messageTextView(_ text: String) -> some View {
+        if let markdown = try? AttributedString(
+            markdown: text,
+            options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .full)
+        ) {
+            Text(markdown)
+                .tint(.blue)
+        } else {
+            Text(text)
         }
     }
 
-    private func initialAssistantMessage(with support: [String]) -> String {
-        let header: String
-        switch activity.type {
-        case .task:
-            header = "🐭 ¡Vamos con tu tarea \"\(activity.title)\"! Te comparto apoyo para que la desarrolles con tus propias ideas:"
-        case .study:
-            header = "🐭 ¡Empecemos a estudiar \"\(activity.title)\"! Si quieres, cuéntame más de tu tema y te guío paso a paso."
-        case .other:
-            header = "🐭 Estoy contigo en \"\(activity.title)\". Aquí tienes material para avanzar:"
+    private func startSessionAndSeedChat() async {
+        _ = try? await agendaService.startActivity(id: activity.id)
+        await MainActor.run {
+            messages = []
         }
-        guard !support.isEmpty else { return header }
-        let bullets = support.map { "• \($0)" }.joined(separator: "\n")
-        return "\(header)\n\(bullets)"
     }
 
     private func sendUserMessage() async {
@@ -619,11 +604,6 @@ private struct ActivityLaunchPlaceholderView: View {
     }
 
     private func assistantResponse(for text: String) async -> String {
-        let support = (try? await intelligence.supportMaterial(for: normalizedTopic, type: activity.type)) ?? []
-        let bulletText = support.isEmpty ? "" : "\n" + support.map { "• \($0)" }.joined(separator: "\n")
-        if isRestrictedRequest(text) {
-            return "Lo siento compañero, no puedo ayudarte con este tipo de solicitudes. Pero aquí hay algunas fuentes que podrían ayudarte:\(bulletText)"
-        }
         let modelReply = (try? await intelligence.chatReply(
             userMessage: text,
             activityTitle: activity.title,
@@ -632,14 +612,9 @@ private struct ActivityLaunchPlaceholderView: View {
         )) ?? ""
         let cleaned = modelReply.trimmingCharacters(in: .whitespacesAndNewlines)
         if cleaned.isEmpty {
-            return "Vamos paso a paso con tu actividad. Primero identifica la meta principal y luego avanza por partes pequeñas.\(bulletText)"
+            return "Cuéntame más detalle de lo que necesitas y te respondo de forma concreta."
         }
-        return cleaned + bulletText
-    }
-
-    private func isRestrictedRequest(_ text: String) -> Bool {
-        let lowered = text.lowercased()
-        return Self.restrictedRequestTokens.contains(where: { lowered.contains($0) })
+        return cleaned
     }
 
     #if canImport(PhotosUI)
@@ -654,7 +629,11 @@ private struct ActivityLaunchPlaceholderView: View {
         await MainActor.run {
             messages.append(ActivityChatMessage(role: .user, text: "Compartí una imagen (\(sizeText)) para revisión.", isImageAttachment: true))
         }
-        let support = (try? await intelligence.supportMaterial(for: normalizedTopic, type: activity.type)) ?? []
+        let supportContext = [activity.title, normalizedTopic]
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " - ")
+        let support = (try? await intelligence.supportMaterial(for: supportContext, type: activity.type)) ?? []
         let bulletText = support.isEmpty ? "" : "\n" + support.map { "• \($0)" }.joined(separator: "\n")
         await MainActor.run {
             messages.append(

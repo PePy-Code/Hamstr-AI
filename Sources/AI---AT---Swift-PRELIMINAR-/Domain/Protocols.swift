@@ -1,21 +1,6 @@
 import Foundation
 
-public protocol AppleIntelligenceProviding: Sendable {
-    func supportMaterial(for topic: String, type: ActivityType) async throws -> [String]
-    func chatReply(
-        userMessage: String,
-        activityTitle: String,
-        topic: String,
-        type: ActivityType
-    ) async throws -> String
-    func triviaQuestions(
-        count: Int,
-        categories: [TriviaCategory],
-        difficulty: Int
-    ) async throws -> [TriviaQuestion]
-}
-
-public protocol LocalAcademicAgentProviding: Sendable {
+public protocol AIConversationProviding: Sendable {
     func supportMaterial(for topic: String, type: ActivityType) async throws -> [String]
     func chatReply(
         userMessage: String,

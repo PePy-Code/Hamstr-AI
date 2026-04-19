@@ -1,13 +1,13 @@
 import Foundation
 
 public actor AgendaService {
-    private let intelligence: AppleIntelligenceProviding
+    private let intelligence: AIConversationProviding
     private let persistence: AgendaPersistenceProviding?
     private(set) var activities: [Activity]
     private(set) var sessions: [ActivitySession]
 
     public init(
-        intelligence: AppleIntelligenceProviding = AppleIntelligenceService(),
+        intelligence: AIConversationProviding = AIConversationService(),
         activities: [Activity] = [],
         sessions: [ActivitySession] = [],
         persistence: AgendaPersistenceProviding? = nil
@@ -88,7 +88,11 @@ public actor AgendaService {
 
         let material: [String]
         if activity.type == .task || activity.type == .study {
-            material = try await intelligence.supportMaterial(for: activity.topic, type: activity.type)
+            let supportContext = [activity.title, activity.topic]
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+                .joined(separator: " - ")
+            material = try await intelligence.supportMaterial(for: supportContext, type: activity.type)
         } else {
             material = []
         }

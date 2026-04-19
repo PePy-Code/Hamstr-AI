@@ -37,3 +37,13 @@ La app inicia en `HomeView` y desde ahí puedes probar:
 - popups encadenados de finalización,
 - Pomodoro trabajo/descanso,
 - chatbot con guardrails para no resolver tareas directamente.
+
+## Configuración temporal de API key (Xcode)
+
+Si quieres hardcodear la key temporalmente:
+
+1. Abre el paquete en Xcode.
+2. Ve a `Sources/AI---AT---Swift-PRELIMINAR-/Configuration/LocalSecrets.swift`.
+3. Reemplaza `LocalSecrets.groqAPIKey` con tu key.
+
+`GROQ_API_KEY` por variable de entorno sigue teniendo prioridad si está definida.

@@ -1,6 +1,9 @@
 import Testing
 @testable import AI___AT___Swift_PRELIMINAR_
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 
 @Test("Streak sube cuando todas las actividades del día están completas")
 func streakIncrementsWhenAllActivitiesComplete() async throws {
@@ -355,7 +358,213 @@ func localAgentParserHardensTriviaPayload() async throws {
     #expect(parsed[1].imageURL == nil)
 }
 
-private struct MockIntelligence: AppleIntelligenceProviding {
+@Test("AIConversationService usa API abierta para responder chat")
+func aiConversationServiceUsesOpenSourceKnowledgeAnswer() async throws {
+    let service = AIConversationService(openSourceKnowledge: MockOpenSourceKnowledge(answer: "Respuesta abierta"))
+
+    let answer = try await service.chatReply(
+        userMessage: "¿Qué es la fotosíntesis?",
+        activityTitle: "Biología",
+        topic: "Plantas",
+        type: .study
+    )
+
+    #expect(answer == "Respuesta abierta")
+}
+
+@Test("AIConversationService responde fallback cuando API abierta no devuelve contenido")
+func aiConversationServiceFallsBackWhenOpenSourceFails() async throws {
+    let service = AIConversationService(openSourceKnowledge: MockOpenSourceKnowledge(answer: nil))
+
+    let answer = try await service.chatReply(
+        userMessage: "Necesito ayuda",
+        activityTitle: "Repaso",
+        topic: "Historia",
+        type: .other
+    )
+
+    #expect(!answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+}
+
+@Test("AIConversationService bloquea solicitudes de resolución directa y entrega fuentes")
+func aiConversationServiceBlocksDirectSolveRequestsWithSources() async throws {
+    let service = AIConversationService(
+        openSourceKnowledge: MockOpenSourceKnowledge(
+            answerProvider: { query in
+                if query.contains("No resuelvas el trabajo") {
+                    return "Fuente directa: https://es.khanacademy.org/math/algebra"
+                }
+                return nil
+            }
+        )
+    )
+
+    let answer = try await service.chatReply(
+        userMessage: "Resuélveme este ejercicio de álgebra",
+        activityTitle: "Álgebra",
+        topic: "Ecuaciones lineales",
+        type: .task
+    )
+
+    #expect(answer.lowercased().contains("no puedo resolver"))
+    #expect(answer.contains("https://es.khanacademy.org/math/algebra"))
+}
+
+@Test("AIConversationService devuelve saludo amigable si no hay fuentes en inicio")
+func aiConversationServiceReturnsFriendlyGreetingWhenNoStartSources() async throws {
+    let service = AIConversationService(openSourceKnowledge: MockOpenSourceKnowledge(answer: nil))
+
+    let material = try await service.supportMaterial(for: "Repaso de química", type: .study)
+
+    #expect(material.count == 1)
+    #expect(material[0].contains("¡Hola!"))
+}
+
+@Test("AIConversationService por defecto prioriza agente externo open source")
+func aiConversationServiceDefaultUsesOpenSourceProvider() async throws {
+    let service = AIConversationService(openSourceKnowledge: MockOpenSourceKnowledge(answer: "Respuesta externa"))
+
+    let answer = try await service.chatReply(
+        userMessage: "Explícame la mitocondria",
+        activityTitle: "Biología celular",
+        topic: "Células",
+        type: .study
+    )
+
+    #expect(answer == "Respuesta externa")
+}
+
+@Suite(.serialized)
+struct OpenSourceKnowledgeServiceNetworkTests {
+    @Test("OpenSourceKnowledgeService soporta preguntas en frase completa y extrae keywords")
+    func openSourceKnowledgeServiceHandlesNaturalLanguageQuestions() async throws {
+        let session = makeMockedSession()
+
+        MockURLProtocol.setRequestHandler { request in
+            let url = try #require(request.url)
+            let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+            let query = components?.queryItems?.first(where: { $0.name == "q" })?.value ?? ""
+
+            let payload: [String: Any]
+            if query.lowercased() == "albert einstein" {
+                payload = [
+                    "AbstractText": "Albert Einstein fue un físico teórico alemán.",
+                    "AbstractURL": "https://es.wikipedia.org/wiki/Albert_Einstein",
+                    "RelatedTopics": []
+                ]
+            } else {
+                payload = [
+                    "AbstractText": "",
+                    "AbstractURL": "",
+                    "RelatedTopics": []
+                ]
+            }
+            let data = try JSONSerialization.data(withJSONObject: payload)
+            return (200, data)
+        }
+        defer { MockURLProtocol.setRequestHandler(nil) }
+
+        let service = OpenSourceKnowledgeService(session: session, groqAPIKey: nil)
+        let answer = await service.answer(for: "¿quien fue albert einstein?")
+
+        #expect(answer?.contains("Einstein") == true)
+    }
+
+    @Test("OpenSourceKnowledgeService usa Groq y responde en español cuando hay API key")
+    func openSourceKnowledgeServiceUsesGroqWhenConfigured() async throws {
+        let session = makeMockedSession()
+        var sawGroqRequest = false
+        let stateQueue = DispatchQueue(label: "test.groq.request.state")
+        MockURLProtocol.setRequestHandler { request in
+            let url = try #require(request.url)
+            if url.absoluteString.contains("api.groq.com/openai/v1/chat/completions") {
+                stateQueue.sync {
+                    sawGroqRequest = true
+                }
+                let payload: [String: Any] = [
+                    "choices": [
+                        [
+                            "message": [
+                                "role": "assistant",
+                                "content": "Albert Einstein fue un científico destacado del siglo XX."
+                            ]
+                        ]
+                    ]
+                ]
+                let data = try JSONSerialization.data(withJSONObject: payload)
+                return (200, data)
+            }
+
+            let fallbackPayload: [String: Any] = [
+                "AbstractText": "Albert Einstein fue un científico destacado del siglo XX.",
+                "AbstractURL": "https://es.wikipedia.org/wiki/Albert_Einstein",
+                "RelatedTopics": []
+            ]
+            let fallbackData = try JSONSerialization.data(withJSONObject: fallbackPayload)
+            return (200, fallbackData)
+        }
+        defer { MockURLProtocol.setRequestHandler(nil) }
+
+        let service = OpenSourceKnowledgeService(session: session, groqAPIKey: "test-key")
+        let answer = await service.answer(for: "quien fue albert einstein?")
+        let didSeeGroqRequest = stateQueue.sync { sawGroqRequest }
+
+        #expect(didSeeGroqRequest)
+        #expect(answer?.contains("fue un científico") == true)
+    }
+
+    @Test("OpenSourceKnowledgeService agrega hipervínculos cuando Groq no los devuelve")
+    func openSourceKnowledgeServiceAddsHyperlinksToGroqReplyWhenMissing() async throws {
+        let session = makeMockedSession()
+
+        MockURLProtocol.setRequestHandler { request in
+            let url = try #require(request.url)
+            if url.absoluteString.contains("api.groq.com/openai/v1/chat/completions") {
+                let payload: [String: Any] = [
+                    "choices": [
+                        [
+                            "message": [
+                                "role": "assistant",
+                                "content": "Albert Einstein fue un físico teórico."
+                            ]
+                        ]
+                    ]
+                ]
+                return (200, try JSONSerialization.data(withJSONObject: payload))
+            }
+
+            if url.absoluteString.contains("api.duckduckgo.com") {
+                let payload: [String: Any] = [
+                    "AbstractText": "Resumen breve sobre Albert Einstein.",
+                    "AbstractURL": "https://es.wikipedia.org/wiki/Albert_Einstein",
+                    "RelatedTopics": []
+                ]
+                return (200, try JSONSerialization.data(withJSONObject: payload))
+            }
+
+            if url.absoluteString.contains("es.wikipedia.org/w/api.php") {
+                let payload: [Any] = [
+                    "albert einstein",
+                    ["Albert Einstein"],
+                    ["Científico teórico del siglo XX."],
+                    ["https://es.wikipedia.org/wiki/Albert_Einstein"]
+                ]
+                return (200, try JSONSerialization.data(withJSONObject: payload))
+            }
+
+            throw URLError(.badURL)
+        }
+        defer { MockURLProtocol.setRequestHandler(nil) }
+
+        let service = OpenSourceKnowledgeService(session: session, groqAPIKey: "test-key")
+        let answer = await service.answer(for: "quien fue albert einstein?")
+
+        #expect(answer?.contains("Fuentes web:") == true)
+        #expect(answer?.contains("[Fuente web](https://es.wikipedia.org/wiki/Albert_Einstein)") == true)
+    }
+}
+
+private struct MockIntelligence: AIConversationProviding {
     let questionCount: Int
 
     init(questionCount: Int = 4) {
@@ -392,6 +601,71 @@ private struct MockIntelligence: AppleIntelligenceProviding {
     }
 }
 
+private struct MockOpenSourceKnowledge: OpenSourceKnowledgeProviding {
+    let answerProvider: @Sendable (String) -> String?
+
+    init(answer: String?) {
+        self.answerProvider = { _ in answer }
+    }
+
+    init(answerProvider: @escaping @Sendable (String) -> String?) {
+        self.answerProvider = answerProvider
+    }
+
+    func answer(for query: String) async -> String? {
+        guard !query.isEmpty else { return nil }
+        return answerProvider(query)
+    }
+}
+
 private struct FixedDateProvider: DateProviding {
     let now: Date
+}
+
+private func makeMockedSession() -> URLSession {
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.protocolClasses = [MockURLProtocol.self]
+    return URLSession(configuration: configuration)
+}
+
+private final class MockURLProtocol: URLProtocol {
+    nonisolated(unsafe) private static var requestHandler: ((URLRequest) throws -> (Int, Data))?
+    private static let requestHandlerQueue = DispatchQueue(label: "tests.mock-url-protocol.handler")
+
+    static func setRequestHandler(_ handler: ((URLRequest) throws -> (Int, Data))?) {
+        requestHandlerQueue.sync {
+            requestHandler = handler
+        }
+    }
+
+    private static func currentRequestHandler() -> ((URLRequest) throws -> (Int, Data))? {
+        requestHandlerQueue.sync { requestHandler }
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        guard let handler = MockURLProtocol.currentRequestHandler() else {
+            client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
+            return
+        }
+
+        do {
+            let (statusCode, data) = try handler(request)
+            let response = HTTPURLResponse(
+                url: request.url ?? URL(string: "https://example.com")!,
+                statusCode: statusCode,
+                httpVersion: nil,
+                headerFields: ["Content-Type": "application/json"]
+            )!
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: data)
+            client?.urlProtocolDidFinishLoading(self)
+        } catch {
+            client?.urlProtocol(self, didFailWithError: error)
+        }
+    }
+
+    override func stopLoading() {}
 }
