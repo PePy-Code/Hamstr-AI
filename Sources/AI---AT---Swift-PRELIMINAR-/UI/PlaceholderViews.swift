@@ -256,7 +256,6 @@ public struct HomeView: View {
         }
         .preferredColorScheme(preferredColorScheme)
         .environment(\.dynamicTypeSize, preferredDynamicTypeSize)
-        .environment(\.colorSchemeContrast, AppPreferences.highContrastEnabled ? .increased : .standard)
     }
 
     private var menuAgendaTable: some View {
