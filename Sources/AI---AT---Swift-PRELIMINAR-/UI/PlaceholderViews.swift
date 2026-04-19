@@ -811,9 +811,7 @@ private struct ActivityEditSheet: View {
         guard !updated.title.isEmpty, !updated.topic.isEmpty else { return }
         let didUpdate = await agendaService.updateActivity(updated)
         guard didUpdate else {
-            await MainActor.run {
-                errorMessage = "No se pudo guardar la actividad. Inténtalo de nuevo."
-            }
+            errorMessage = "No se pudo guardar la actividad. Inténtalo de nuevo."
             return
         }
         await completeAndDismiss()
@@ -822,9 +820,7 @@ private struct ActivityEditSheet: View {
     private func delete() async {
         let didDelete = await agendaService.deleteActivity(id: activity.id)
         guard didDelete else {
-            await MainActor.run {
-                errorMessage = "No se pudo eliminar la actividad. Inténtalo de nuevo."
-            }
+            errorMessage = "No se pudo eliminar la actividad. Inténtalo de nuevo."
             return
         }
         await completeAndDismiss()
