@@ -70,7 +70,7 @@ public struct AppleIntelligenceService: AppleIntelligenceProviding {
             .filter { !$0.isEmpty }
             .joined(separator: " - ")
         let query = cleanedMessage.isEmpty ? fallbackQuery : cleanedMessage
-        let userContext = query.isEmpty ? "tu actividad actual" : query
+        let displayContext = query.isEmpty ? "tu actividad actual" : query
         if let openAnswer = await openSourceKnowledge.answer(for: query),
            !openAnswer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return openAnswer
@@ -80,17 +80,17 @@ public struct AppleIntelligenceService: AppleIntelligenceProviding {
         case .task:
             return """
             Entiendo tu consulta sobre "\(cleanedTitle)".
-            Para avanzar con "\(userContext)", define primero el objetivo exacto y comparte tu intento; te ayudo a resolverlo y mejorarlo.
+            Para avanzar con "\(displayContext)", define primero el objetivo exacto y comparte tu intento; te ayudo a resolverlo y mejorarlo.
             """
         case .study:
             return """
             Vamos con "\(cleanedTitle)".
-            Sobre "\(userContext)", puedo explicarlo en pasos, darte un ejemplo y luego validar si quedó claro.
+            Sobre "\(displayContext)", puedo explicarlo en pasos, darte un ejemplo y luego validar si quedó claro.
             """
         case .other:
             return """
             Recibido para "\(cleanedTitle)".
-            Si me dices el resultado que buscas en "\(userContext)", te propongo una respuesta concreta y la refinamos en conjunto.
+            Si me dices el resultado que buscas en "\(displayContext)", te propongo una respuesta concreta y la refinamos en conjunto.
             """
         }
     }
