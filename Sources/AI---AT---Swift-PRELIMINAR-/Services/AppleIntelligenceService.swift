@@ -9,13 +9,8 @@ public struct AppleIntelligenceService: AppleIntelligenceProviding {
     private let localAgent: LocalAcademicAgentProviding?
     private let openSourceKnowledge: OpenSourceKnowledgeProviding
 
-    public init(openSourceKnowledge: OpenSourceKnowledgeProviding = OpenSourceKnowledgeService()) {
-        self.localAgent = AppleIntelligenceService.makeDefaultLocalAgent()
-        self.openSourceKnowledge = openSourceKnowledge
-    }
-
     public init(
-        localAgent: LocalAcademicAgentProviding?,
+        localAgent: LocalAcademicAgentProviding? = AppleIntelligenceService.defaultLocalAgent(),
         openSourceKnowledge: OpenSourceKnowledgeProviding = OpenSourceKnowledgeService()
     ) {
         self.localAgent = localAgent
@@ -104,8 +99,8 @@ public struct AppleIntelligenceService: AppleIntelligenceProviding {
     }
 }
 
-private extension AppleIntelligenceService {
-    static func makeDefaultLocalAgent() -> LocalAcademicAgentProviding? {
+public extension AppleIntelligenceService {
+    static func defaultLocalAgent() -> LocalAcademicAgentProviding? {
         #if canImport(FoundationModels)
         if #available(iOS 26.0, macOS 15.0, *) {
             return FoundationModelsLocalAgent()
