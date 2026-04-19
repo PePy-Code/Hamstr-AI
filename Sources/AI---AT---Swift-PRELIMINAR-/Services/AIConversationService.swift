@@ -171,21 +171,21 @@ private extension AIConversationService {
     }
 
     func friendlyGreeting() -> String {
-        "Hola, soy Chispa ✨ No encontré fuentes directas ahora mismo, pero puedo ayudarte a enfocar tu estudio paso a paso."
+        "Soy Roedor 🐭 No encontré fuentes directas ahora mismo, pero puedo ayudarte a enfocar tu estudio paso a paso."
     }
 
     func refusalWithSources(_ sources: [String]) -> String {
         let bulletList = sources.prefix(3).map { "• \($0)" }.joined(separator: "\n")
-        return "Eso es algo que debes desarrollar tú mismo — así aprenderás más. Pero te dejo estas fuentes para orientarte:\n\n\(bulletList)"
+        return "Eso tienes que desarrollarlo tú — así es como se aprende de verdad.\n\nTe dejo estas fuentes para orientarte:\n\n\(bulletList)"
     }
 
     func refusalWithoutSources(context: String) -> String {
-        "Prefiero no resolver eso directamente — te quedarías sin aprender. 😊\n\nSi quieres, te armo un plan de estudio sobre \"\(context)\" y te comparto fuentes directas."
+        "Mejor que lo trabajes tú mismo 🐭\n\nSi quieres, armo un plan de estudio sobre \"\(context)\" y te comparto fuentes directas."
     }
 
     func fallbackChatReply(title: String, context: String) -> String {
         let safeTitle = title.isEmpty ? "tu actividad" : title
-        return cleanChatResponse("Entendido. Puedo ayudarte con \"\(safeTitle)\" y responder directamente tu consulta sobre \"\(context)\".\n\nDime la pregunta exacta o dame más contexto y te doy una respuesta concreta. 🎯")
+        return cleanChatResponse("Entendido. Puedo ayudarte con \"\(safeTitle)\" sobre \"\(context)\".\n\nDime la pregunta exacta o dame más contexto.")
     }
 
     private func cleanChatResponse(_ rawText: String) -> String {

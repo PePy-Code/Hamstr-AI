@@ -51,12 +51,12 @@ public struct HomeView: View {
                         openPersonalChatbot = true
                     } label: {
                         HStack(alignment: .top, spacing: 10) {
-                            Text("⚡️")
+                            Text("🐭")
                                 .font(.largeTitle)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Chispa")
+                                Text("Roedor")
                                     .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.orange)
+                                    .foregroundStyle(.secondary)
                                 Text(petSupportMessage)
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
@@ -314,12 +314,12 @@ public struct HomeView: View {
 
     private var petSupportMessage: String {
         if streakState.days >= 7 {
-            return "¡Llevas \(streakState.days) días seguidos! Eso no es suerte, es constancia. Sigue así 🔥"
+            return "Llevas \(streakState.days) días seguidos. Eso es constancia real. 🔥"
         }
         if todayActivities.isEmpty {
-            return "Sin actividades programadas hoy. Una pequeña tarea ahora puede marcar la diferencia. ¿Empezamos?"
+            return "Sin actividades hoy. Una pequeña tarea marca la diferencia."
         }
-        return "Enfócate un bloque a la vez. Cada paso suma. ¡Tú puedes! ⚡️"
+        return "Un bloque a la vez. Cada paso suma 🐭"
     }
 
     private func statusColor(for status: ActivityStatus) -> Color {
@@ -360,7 +360,7 @@ private struct PersonalChatbotView: View {
             chatComposer
         }
         .padding()
-        .navigationTitle("Chispa ⚡️")
+        .navigationTitle("Roedor 🐭")
         .task {
             guard !hasLoaded else { return }
             hasLoaded = true
@@ -370,7 +370,7 @@ private struct PersonalChatbotView: View {
 
     private var chatSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Chispa ⚡️")
+            Text("Roedor 🐭")
                 .font(.headline)
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 8) {
@@ -394,7 +394,7 @@ private struct PersonalChatbotView: View {
     private var chatComposer: some View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
-                TextField("Escribe a Chispa...", text: $userInput, axis: .vertical)
+                TextField("Escribe a Roedor...", text: $userInput, axis: .vertical)
                     .textFieldStyle(.roundedBorder)
 
                 Button("Enviar") {
@@ -403,7 +403,7 @@ private struct PersonalChatbotView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(userInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
-            Text("Pídele a Chispa consejos, ayuda para organizarte o para recordar actividades.")
+            Text("Pídele a Roedor consejos, ayuda para organizarte o para recordar actividades.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -468,7 +468,7 @@ private struct PersonalChatbotView: View {
         )) ?? ""
         let cleaned = modelReply.trimmingCharacters(in: .whitespacesAndNewlines)
         if cleaned.isEmpty {
-            return "Cuéntame qué necesitas organizar hoy y lo vemos juntos. ⚡️"
+            return "Cuéntame qué necesitas organizar hoy 🐭"
         }
         return cleaned
     }
@@ -479,12 +479,12 @@ private struct PersonalChatbotView: View {
         let streakDayWord = pluralizedWord(for: streakDays, singular: "día", plural: "días")
         let activityWord = pluralizedWord(for: todayPending, singular: "actividad", plural: "actividades")
         let streakText = streakDays > 0
-            ? "Llevas una racha de \(streakDays) \(streakDayWord) — ¡no la pierdas! 🔥"
-            : "Todavía no tienes racha activa, pero cada día es una nueva oportunidad."
+            ? "Llevas una racha de \(streakDays) \(streakDayWord)."
+            : "Aún no tienes racha activa."
         if todayActivities.isEmpty && tomorrowActivities.isEmpty {
-            return "¡Hola! Soy Chispa ⚡️\n\nAún no tienes actividades programadas. \(streakText)\n\nSi quieres, cuéntame en qué quieres avanzar hoy y lo organizamos juntos."
+            return "Hola, soy Roedor 🐭\n\n\(streakText) No tienes actividades programadas.\n\nSi quieres, cuéntame en qué quieres avanzar hoy."
         }
-        return "¡Hola! Soy Chispa ⚡️\n\nHoy tienes \(todayPending) \(activityWord) pendientes y mañana hay \(tomorrowCount) más. \(streakText)\n\nCuéntame cómo puedo ayudarte."
+        return "Hola, soy Roedor 🐭\n\nHoy tienes \(todayPending) \(activityWord) pendientes y mañana hay \(tomorrowCount) más. \(streakText)\n\n¿En qué te ayudo?"
     }
 
     private func pluralizedWord(for count: Int, singular: String, plural: String) -> String {
@@ -609,7 +609,7 @@ private struct ActivityLaunchPlaceholderView: View {
                 )
             case .mentalTrainingPrompt:
                 return Alert(
-                    title: Text("⚡️ Chispa te propone…"),
+                    title: Text("🐭 Entrenamiento mental"),
                     message: Text("¿Te gustaría hacer un entrenamiento mental?"),
                     primaryButton: .default(Text("Sí")) {
                         if shouldShowStreakPopup {
@@ -694,7 +694,7 @@ private struct ActivityLaunchPlaceholderView: View {
 
     private var chatSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Chispa ⚡️")
+            Text("Roedor 🐭")
                 .font(.headline)
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 8) {
@@ -732,7 +732,7 @@ private struct ActivityLaunchPlaceholderView: View {
                 .buttonStyle(.bordered)
                 #endif
 
-                TextField("Escribe a Chispa...", text: $userInput, axis: .vertical)
+                TextField("Escribe a Roedor...", text: $userInput, axis: .vertical)
                     .textFieldStyle(.roundedBorder)
 
                 Button("Enviar") {
@@ -741,7 +741,7 @@ private struct ActivityLaunchPlaceholderView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(userInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
-            Text("Chispa responde preguntas, explica conceptos y sugiere fuentes abiertas.")
+            Text("Roedor responde preguntas, explica conceptos y sugiere fuentes abiertas.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -807,7 +807,7 @@ private struct ActivityLaunchPlaceholderView: View {
         )) ?? ""
         let cleaned = modelReply.trimmingCharacters(in: .whitespacesAndNewlines)
         if cleaned.isEmpty {
-            return "Dame más contexto de lo que necesitas y te respondo de forma concreta. ⚡️"
+            return "Dame más contexto y te respondo de forma concreta 🐭"
         }
         return cleaned
     }

@@ -455,7 +455,7 @@ func aiConversationServiceReturnsFriendlyGreetingWhenNoStartSources() async thro
     let material = try await service.supportMaterial(for: "Repaso de química", type: .study)
 
     #expect(material.count == 1)
-    #expect(material[0].contains("Chispa"))
+    #expect(material[0].contains("Roedor"))
 }
 
 @Test("AIConversationService por defecto prioriza agente externo open source")
