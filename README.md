@@ -1,49 +1,117 @@
 # AI---AT---Swift-PRELIMINAR-
-Entrenador académico para iOS con el propósito de apoyar a estudiantes con problemas de atención y TDAH
 
-## Implementación base incluida
+Entrenador académico en Swift para apoyar a estudiantes con problemas de atención y TDAH.
 
-- Arquitectura modular con capas de dominio, servicios y UI mínima reemplazable.
-- **Agenda** con CRUD básico, inicio de actividad y sesión tipo pomodoro, incluyendo marcado de estado (pendiente / en progreso / realizada).
-- Persistencia local de Agenda en JSON (base de datos local de archivo).
-- Integración de **Apple Intelligence** abstraída por protocolo con fallback local seguro y soporte opcional para agente local con Foundation Models cuando esté disponible.
-- **Entrenador Mental** con trivia de opción múltiple y reglas de game over/reintento.
-- **Motor de racha** con reglas:
-  - Día con actividades: racha válida solo si todas se completan.
-  - Día sin actividades: racha válida con 1 entrenamiento mental válido.
-- Notificaciones implementadas para:
-  - fin de temporizador Pomodoro,
-  - recordatorios diarios según agenda,
-  - mensajes motivacionales para impulsar entrenamiento mental.
-- Pruebas unitarias para reglas de racha, trivia, agenda y notificaciones.
+## ¿Qué es este proyecto?
 
-## Ejecutar en simulador de Xcode
+Este repositorio contiene una **librería Swift Package Manager (SPM)** con la lógica principal de una app de entrenamiento académico:
+- gestión de agenda,
+- sesiones de estudio tipo Pomodoro,
+- chat de apoyo con guardrails,
+- entrenamiento mental por trivia,
+- motor de racha,
+- planificación de notificaciones.
 
-Este repositorio ahora expone **solo la librería SPM**.  
-La app iOS debe vivir en un proyecto Xcode separado que consuma este paquete local.
+> La UI final de app iOS debe vivir en un proyecto Xcode separado que consuma este paquete.
 
-1. Crea un nuevo proyecto Xcode (`File > New > Project... > iOS App`) con SwiftUI.
-2. Usa como Bundle Identifier: `com.pepy.academictrainer`.
-3. En el proyecto de app: `File > Add Package Dependencies... > Add Local...` y selecciona la carpeta de este repositorio.
+## Configuración de la API de Groq
+
+La integración de Groq está implementada en:
+- `Sources/AI---AT---Swift-PRELIMINAR-/Services/OpenSourceKnowledgeService.swift`
+
+Modelo configurado actualmente:
+- `llama-3.3-70b-versatile`
+
+### Opción recomendada: variable de entorno
+
+1. Obtén tu API key en Groq.
+2. Define la variable de entorno `GROQ_API_KEY` antes de ejecutar pruebas o la app.
+
+Ejemplo (macOS/Linux):
+
+```bash
+export GROQ_API_KEY="tu_api_key"
+```
+
+### Opción temporal para desarrollo local
+
+1. Abre este archivo:
+   - `Sources/AI---AT---Swift-PRELIMINAR-/Configuration/LocalSecrets.swift`
+2. Asigna tu key en `LocalSecrets.groqAPIKey`.
+
+```swift
+static let groqAPIKey: String = "tu_api_key"
+```
+
+3. No subas keys reales al repositorio.
+
+### Prioridad de credenciales
+
+La resolución de la key sigue este orden:
+1. `GROQ_API_KEY` (entorno)
+2. `LocalSecrets.groqAPIKey`
+
+Si no hay key, el servicio usa fuentes abiertas (DuckDuckGo/Wikipedia) y fallback local.
+
+## Features principales
+
+- **Agenda académica (CRUD)**
+  - crear, listar, actualizar, completar, marcar pendiente y eliminar actividades.
+- **Sesión de actividad con apoyo contextual**
+  - al iniciar estudio/tarea, intenta obtener fuentes directas para estudiar.
+- **Persistencia local de agenda**
+  - guardado/carga en JSON (`agenda.json`) con `Codable`.
+- **Chat de apoyo académico con guardrails**
+  - evita resolver tareas directamente,
+  - prioriza orientación y fuentes de estudio.
+- **Entrenador mental (trivia)**
+  - preguntas de opción múltiple,
+  - reglas de retry y game over.
+- **Motor de racha**
+  - sube por actividades del día completadas,
+  - o por sesión mental válida en día sin agenda.
+- **Notificaciones planificadas**
+  - recordatorio diario,
+  - motivación de entrenamiento mental,
+  - finalización de Pomodoro.
+
+## Frameworks, APIs y tecnologías utilizadas
+
+- **Lenguaje:** Swift 6
+- **Gestión de paquete:** Swift Package Manager (SPM)
+- **Plataformas objetivo:** iOS 17+, macOS 14+
+- **Frameworks base:**
+  - `Foundation`
+  - `FoundationNetworking` (cuando aplica)
+- **Concurrencia:** `async/await`, `actor`, `Sendable`
+- **Persistencia local:** archivo JSON con `Codable`
+- **APIs externas:**
+  - **Groq Chat Completions API** (`https://api.groq.com/openai/v1/chat/completions`)
+  - **DuckDuckGo Instant Answer API**
+  - **Wikipedia OpenSearch API**
+- **Testing:** Swift Testing (`import Testing`)
+
+## Cómo usar este paquete
+
+### 1) Compilar y probar
+
+Desde la raíz del repositorio:
+
+```bash
+swift build
+swift test
+```
+
+### 2) Integrarlo en una app iOS (Xcode)
+
+1. Crea una app iOS en Xcode (SwiftUI).
+2. En tu proyecto: `File > Add Package Dependencies... > Add Local...`.
+3. Selecciona la carpeta de este repositorio.
 4. Agrega el producto `AI---AT---Swift-PRELIMINAR-` al target de la app.
-5. En el `@main` de tu app, importa `AI___AT___Swift_PRELIMINAR_` y presenta `HomeView()`.
-6. Selecciona un simulador iOS y ejecuta con `Run` (⌘R).
+5. Importa el módulo `AI___AT___Swift_PRELIMINAR_` en tu app.
 
-> SwiftPM por sí solo no genera un `.app` iOS con `bundle identifier`, signing y entitlements completos para simulador/dispositivo.
+## Seguridad
 
-La app inicia en `HomeView` y desde ahí puedes probar:
-- botón rápido `+` del menú principal,
-- inicio de actividad con flujo `Finalizar/Pendiente`,
-- popups encadenados de finalización,
-- Pomodoro trabajo/descanso,
-- chatbot con guardrails para no resolver tareas directamente.
-
-## Configuración temporal de API key (Xcode)
-
-Si quieres hardcodear la key temporalmente:
-
-1. Abre el paquete en Xcode.
-2. Ve a `Sources/AI---AT---Swift-PRELIMINAR-/Configuration/LocalSecrets.swift`.
-3. Reemplaza `LocalSecrets.groqAPIKey` con tu key.
-
-`GROQ_API_KEY` por variable de entorno sigue teniendo prioridad si está definida.
+- Nunca hardcodees claves reales en commits.
+- Usa `GROQ_API_KEY` para entornos de desarrollo/CI.
+- `LocalSecrets.swift` debe mantenerse con valor vacío en el código compartido.
