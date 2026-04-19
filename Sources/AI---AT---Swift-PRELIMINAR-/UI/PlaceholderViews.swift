@@ -799,14 +799,15 @@ private struct ActivityEditSheet: View {
         updated.scheduledAt = scheduledAt
         guard !updated.title.isEmpty, !updated.topic.isEmpty else { return }
         _ = await agendaService.updateActivity(updated)
-        await MainActor.run {
-            onDidSave()
-            dismiss()
-        }
+        await completeAndDismiss()
     }
 
     private func delete() async {
         _ = await agendaService.deleteActivity(id: activity.id)
+        await completeAndDismiss()
+    }
+
+    private func completeAndDismiss() async {
         await MainActor.run {
             onDidSave()
             dismiss()
