@@ -547,6 +547,15 @@ private struct ActivityLaunchPlaceholderView: View {
                     remainingSeconds = workDurationSeconds
                 }
                 .buttonStyle(.bordered)
+
+                #if DEBUG
+                Button("DEBUG 10 s") {
+                    remainingSeconds = 10
+                    isRunning = true
+                }
+                .buttonStyle(.bordered)
+                .tint(.orange)
+                #endif
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
