@@ -20,7 +20,7 @@ public struct AppleIntelligenceService: AppleIntelligenceProviding {
     ) {
         switch localAgentConfiguration {
         case .automatic:
-            self.localAgent = AppleIntelligenceService.defaultLocalAgent()
+            self.localAgent = AppleIntelligenceService.makeDefaultLocalAgent()
         case let .provided(agent):
             self.localAgent = agent
         }
@@ -109,8 +109,8 @@ public struct AppleIntelligenceService: AppleIntelligenceProviding {
     }
 }
 
-public extension AppleIntelligenceService {
-    static func defaultLocalAgent() -> LocalAcademicAgentProviding? {
+private extension AppleIntelligenceService {
+    static func makeDefaultLocalAgent() -> LocalAcademicAgentProviding? {
         #if canImport(FoundationModels)
         if #available(iOS 26.0, macOS 15.0, *) {
             return FoundationModelsLocalAgent()
