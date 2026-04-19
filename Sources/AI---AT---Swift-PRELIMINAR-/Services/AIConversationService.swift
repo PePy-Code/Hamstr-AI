@@ -4,26 +4,13 @@ public protocol OpenSourceKnowledgeProviding: Sendable {
     func answer(for query: String) async -> String?
 }
 
-public enum LocalAgentConfiguration: Sendable {
-    case externalOnly
-    case provided((any LocalAcademicAgentProviding)?)
-}
-
-public struct AppleIntelligenceService: AppleIntelligenceProviding {
+public struct AIConversationService: AIConversationProviding {
     private let fallback = LocalFallbackGenerator()
-    private let localAgent: LocalAcademicAgentProviding?
     private let openSourceKnowledge: OpenSourceKnowledgeProviding
 
     public init(
-        localAgentConfiguration: LocalAgentConfiguration = .externalOnly,
         openSourceKnowledge: OpenSourceKnowledgeProviding = OpenSourceKnowledgeService()
     ) {
-        switch localAgentConfiguration {
-        case .externalOnly:
-            self.localAgent = nil
-        case let .provided(agent):
-            self.localAgent = agent
-        }
         self.openSourceKnowledge = openSourceKnowledge
     }
 
@@ -31,10 +18,14 @@ public struct AppleIntelligenceService: AppleIntelligenceProviding {
         let safeTopic = topic.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !safeTopic.isEmpty else { return fallback.defaultSupportMaterial(for: "tema general") }
 
-        if let localAgent,
-           let localResult = try? await localAgent.supportMaterial(for: safeTopic, type: type),
-           !localResult.isEmpty {
-            return localResult
+        if let openAnswer = await openSourceKnowledge.answer(for: "Material de apoyo para: \(safeTopic)") {
+            let suggestions = openAnswer
+                .components(separatedBy: CharacterSet(charactersIn: ".\n"))
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+            if !suggestions.isEmpty {
+                return Array(suggestions.prefix(3))
+            }
         }
 
         switch type {
@@ -54,29 +45,16 @@ public struct AppleIntelligenceService: AppleIntelligenceProviding {
         let cleanedMessage = userMessage.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanedTopic = topic.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanedTitle = activityTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        if let localAgent,
-           let reply = try? await localAgent.chatReply(
-               userMessage: cleanedMessage,
-               activityTitle: cleanedTitle,
-               topic: cleanedTopic,
-               type: type
-           ),
-           !reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return reply
-        }
-
-        let fallbackQuery = [cleanedTitle, cleanedTopic]
+        let query = cleanedMessage.isEmpty ? [cleanedTitle, cleanedTopic]
             .filter { !$0.isEmpty }
-            .joined(separator: " - ")
-        let query = cleanedMessage.isEmpty ? fallbackQuery : cleanedMessage
+            .joined(separator: " - ") : cleanedMessage
         let displayContext = query.isEmpty ? "tu actividad actual" : query
         if let openAnswer = await openSourceKnowledge.answer(for: query),
            !openAnswer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return openAnswer
         }
 
-        return fallbackChatReply(type: type, title: cleanedTitle, context: displayContext)
+        return fallbackChatReply(title: cleanedTitle, context: displayContext)
     }
 
     public func triviaQuestions(
@@ -88,16 +66,6 @@ public struct AppleIntelligenceService: AppleIntelligenceProviding {
         let validatedCategories = categories.isEmpty ? TriviaCategory.allCases : categories
         let validatedDifficulty = min(max(difficulty, 1), 5)
 
-        if let localAgent,
-           let localQuestions = try? await localAgent.triviaQuestions(
-               count: validatedCount,
-               categories: validatedCategories,
-               difficulty: validatedDifficulty
-           ),
-           !localQuestions.isEmpty {
-            return localQuestions
-        }
-
         return fallback.defaultQuestions(
             count: validatedCount,
             categories: validatedCategories,
@@ -106,25 +74,13 @@ public struct AppleIntelligenceService: AppleIntelligenceProviding {
     }
 }
 
-private extension AppleIntelligenceService {
-    func fallbackChatReply(type: ActivityType, title: String, context: String) -> String {
-        switch type {
-        case .task:
-            return """
-            Entiendo tu consulta sobre "\(title)".
-            Para avanzar con "\(context)", define primero el objetivo exacto y comparte tu intento; te ayudo a resolverlo y mejorarlo.
-            """
-        case .study:
-            return """
-            Vamos con "\(title)".
-            Sobre "\(context)", puedo explicarlo en pasos, darte un ejemplo y luego validar si quedó claro.
-            """
-        case .other:
-            return """
-            Recibido para "\(title)".
-            Si me dices el resultado que buscas en "\(context)", te propongo una respuesta concreta y la refinamos en conjunto.
-            """
-        }
+private extension AIConversationService {
+    func fallbackChatReply(title: String, context: String) -> String {
+        let safeTitle = title.isEmpty ? "tu actividad" : title
+        return """
+        Entendido. Puedo ayudarte con "\(safeTitle)" y responder directamente tu consulta sobre "\(context)".
+        Si quieres, dime la pregunta exacta o comparte más contexto para darte una respuesta más precisa.
+        """
     }
 }
 

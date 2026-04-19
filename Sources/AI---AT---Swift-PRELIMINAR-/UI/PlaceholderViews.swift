@@ -338,7 +338,7 @@ private struct ActivityLaunchPlaceholderView: View {
     @State private var isRunning = true
     @State private var isWorkPhase = true
     private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-    private let intelligence = AppleIntelligenceService()
+    private let intelligence = AIConversationService()
     private let calendar = Calendar.current
     #if canImport(PhotosUI)
     @State private var selectedPhotoItem: PhotosPickerItem?

@@ -1,13 +1,13 @@
 import Foundation
 
 public actor AgendaService {
-    private let intelligence: AppleIntelligenceProviding
+    private let intelligence: AIConversationProviding
     private let persistence: AgendaPersistenceProviding?
     private(set) var activities: [Activity]
     private(set) var sessions: [ActivitySession]
 
     public init(
-        intelligence: AppleIntelligenceProviding = AppleIntelligenceService(),
+        intelligence: AIConversationProviding = AIConversationService(),
         activities: [Activity] = [],
         sessions: [ActivitySession] = [],
         persistence: AgendaPersistenceProviding? = nil

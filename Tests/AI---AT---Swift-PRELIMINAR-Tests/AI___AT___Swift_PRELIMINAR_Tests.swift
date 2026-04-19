@@ -355,12 +355,9 @@ func localAgentParserHardensTriviaPayload() async throws {
     #expect(parsed[1].imageURL == nil)
 }
 
-@Test("AppleIntelligenceService usa API abierta cuando no hay agente local")
-func appleIntelligenceServiceUsesOpenSourceKnowledgeAnswer() async throws {
-    let service = AppleIntelligenceService(
-        localAgentConfiguration: .provided(nil),
-        openSourceKnowledge: MockOpenSourceKnowledge(answer: "Respuesta abierta")
-    )
+@Test("AIConversationService usa API abierta para responder chat")
+func aiConversationServiceUsesOpenSourceKnowledgeAnswer() async throws {
+    let service = AIConversationService(openSourceKnowledge: MockOpenSourceKnowledge(answer: "Respuesta abierta"))
 
     let answer = try await service.chatReply(
         userMessage: "¿Qué es la fotosíntesis?",
@@ -372,12 +369,9 @@ func appleIntelligenceServiceUsesOpenSourceKnowledgeAnswer() async throws {
     #expect(answer == "Respuesta abierta")
 }
 
-@Test("AppleIntelligenceService responde fallback cuando API abierta no devuelve contenido")
-func appleIntelligenceServiceFallsBackWhenOpenSourceFails() async throws {
-    let service = AppleIntelligenceService(
-        localAgentConfiguration: .provided(nil),
-        openSourceKnowledge: MockOpenSourceKnowledge(answer: nil)
-    )
+@Test("AIConversationService responde fallback cuando API abierta no devuelve contenido")
+func aiConversationServiceFallsBackWhenOpenSourceFails() async throws {
+    let service = AIConversationService(openSourceKnowledge: MockOpenSourceKnowledge(answer: nil))
 
     let answer = try await service.chatReply(
         userMessage: "Necesito ayuda",
@@ -389,11 +383,9 @@ func appleIntelligenceServiceFallsBackWhenOpenSourceFails() async throws {
     #expect(!answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 }
 
-@Test("AppleIntelligenceService por defecto prioriza agente externo open source")
-func appleIntelligenceServiceDefaultUsesOpenSourceProvider() async throws {
-    let service = AppleIntelligenceService(
-        openSourceKnowledge: MockOpenSourceKnowledge(answer: "Respuesta externa")
-    )
+@Test("AIConversationService por defecto prioriza agente externo open source")
+func aiConversationServiceDefaultUsesOpenSourceProvider() async throws {
+    let service = AIConversationService(openSourceKnowledge: MockOpenSourceKnowledge(answer: "Respuesta externa"))
 
     let answer = try await service.chatReply(
         userMessage: "Explícame la mitocondria",
@@ -405,7 +397,7 @@ func appleIntelligenceServiceDefaultUsesOpenSourceProvider() async throws {
     #expect(answer == "Respuesta externa")
 }
 
-private struct MockIntelligence: AppleIntelligenceProviding {
+private struct MockIntelligence: AIConversationProviding {
     let questionCount: Int
 
     init(questionCount: Int = 4) {
