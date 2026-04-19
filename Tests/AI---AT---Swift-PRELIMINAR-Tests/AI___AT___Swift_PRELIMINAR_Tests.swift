@@ -116,6 +116,18 @@ func agendaStartTaskReturnsSupportMaterial() async throws {
     #expect((session?.supportMaterial.count ?? 0) > 0)
 }
 
+@Test("Actividad finalizada no permite iniciar nueva sesión")
+func agendaDoesNotStartCompletedActivity() async throws {
+    let agenda = AgendaService(intelligence: MockIntelligence())
+    let day = Date(timeIntervalSince1970: 1_710_172_800)
+    let activity = await agenda.createActivity(title: "Repaso", topic: "Cálculo lineal", type: .study, scheduledAt: day)
+
+    _ = await agenda.completeActivity(id: activity.id)
+    let session = try await agenda.startActivity(id: activity.id, now: day)
+
+    #expect(session == nil)
+}
+
 @Test("Actividad puede volver a pendiente desde flujo pomodoro")
 func agendaCanMarkPendingAfterCompletion() async throws {
     let agenda = AgendaService(intelligence: MockIntelligence())
