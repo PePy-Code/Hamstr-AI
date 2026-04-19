@@ -153,7 +153,7 @@ public struct AIConversationService: AIConversationProviding {
 private extension AIConversationService {
     enum MascotMessageConfig {
         static let upcomingHorizonSeconds: TimeInterval = 6 * 60 * 60
-        static let maxMessageLength = 200
+        static let maxMessageLength = 220
         static let urgentActivityThresholdMinutes = 90
 
         static let mascotMoods: [String] = [
@@ -169,8 +169,29 @@ private extension AIConversationService {
             "soñador pero concreto"
         ]
 
+        /// Temas de bienestar que Chispa puede traer a colación cuando no hay urgencia inmediata.
+        /// Diseñados para estudiantes +15 años que pueden tener dificultades de concentración o TDAH.
+        static let wellbeingAngles: [String] = [
+            "técnica de enfoque para TDAH: bloques de 10-15 min con pausa activa",
+            "ancla sensorial: un objeto o aroma que indique 'hora de estudiar'",
+            "la regla de los 2 minutos: si algo tarda menos de 2 min, hazlo ahora y despeja la mente",
+            "body doubling: estudiar con alguien cerca (aunque sea por videollamada) ayuda a mantenerse",
+            "música sin letra o ruido blanco para reducir distracción auditiva",
+            "dividir la tarea en pasos mini: solo el primer paso importa ahora mismo",
+            "movimiento antes de estudiar: 5 min de ejercicio activan el lóbulo prefrontal",
+            "modo avión para el teléfono: 20 min sin notificaciones cambia el juego",
+            "hidratación y respiración profunda: el cerebro funciona mejor bien oxigenado",
+            "recompensa planificada: define qué harás después de estudiar como motivación extra",
+            "journaling de 2 minutos: vaciar la mente antes de empezar reduce el ruido interno",
+            "ambiente visual limpio: despeja el escritorio antes de abrir el libro"
+        ]
+
         static func randomMood() -> String {
             mascotMoods.randomElement() ?? mascotMoods[0]
+        }
+
+        static func randomWellbeingAngle() -> String {
+            wellbeingAngles.randomElement() ?? wellbeingAngles[0]
         }
     }
 
@@ -310,14 +331,16 @@ private extension AIConversationService {
         }.joined(separator: "\n")
 
         let mood = MascotMessageConfig.randomMood()
+        let wellbeing = MascotMessageConfig.randomWellbeingAngle()
         let pending = (todayActivities + tomorrowActivities)
             .filter { $0.status != .completed && $0.status != .failed }.count
 
         return """
         Eres Chispa, una pequeña mascota sabia y entrañable, como Pepe Grillo: cercana, algo filósofa, con chispa de humor y mucho cariño.
-        Tu misión es acompañar al estudiante con un mensaje fresco y genuino cada vez que abre la app.
+        Tu misión es acompañar al estudiante (15+ años, puede tener TDAH o dificultades de concentración) con un mensaje fresco y genuino cada vez que abre la app.
 
         Hoy tu humor es: \(mood).
+        Tema de bienestar disponible: \(wellbeing).
 
         Contexto del estudiante:
         - Racha activa: \(streakDays) día(s).
@@ -329,9 +352,10 @@ private extension AIConversationService {
         - Escribe UN solo mensaje en español, máximo \(MascotMessageConfig.maxMessageLength) caracteres.
         - Sin markdown, sin links, sin listas.
         - Varía el inicio, el tono y los emojis en cada respuesta: nunca empieces igual dos veces.
-        - Si hay actividad próxima, avísale con cariño y un poco de urgencia.
+        - Si hay actividad próxima, prioriza ese aviso con cariño y un poco de urgencia.
         - Si la racha es alta (7+), celébralo con entusiasmo.
-        - Si no hay nada urgente, sorpréndele: un tip inesperado, una metáfora, una pregunta retórica o un guiño de humor.
+        - Si no hay nada urgente, elige entre: dar el tip de bienestar del día, una reflexión motivacional, un consejo de concentración o una metáfora ingeniosa.
+        - El bienestar no es solo estudiar: también vale recordar respirar, moverse, hidratarse o descansar la mente.
         - Puedes hablar de Chispa en tercera persona ocasionalmente, o en primera.
         - Lo único prohibido: repetir la misma estructura de mensaje dos veces seguidas.
         """
@@ -398,11 +422,21 @@ private extension AIConversationService {
             "💡 Un paso pequeño hoy vale más que un salto perfecto mañana. ¡Dale!",
             "🧠 El Trainer espera. 5 minutos bastan para despertar al cerebro dormido.",
             "🌀 La técnica Pomodoro: 25 min de enfoque, 5 de descanso. Chispa lo aprueba.",
-            "🎵 Estudiar tiene su ritmo. Encuentra el tuyo y el tiempo vuelta solo.",
+            "🎵 Estudiar tiene su ritmo. Encuentra el tuyo y el tiempo vuela solo.",
             "🔑 ¿Sabes qué abre todas las puertas? La constancia. Y tú ya la tienes.",
             "🌈 Cada actividad que cierras es una ficha más en tu tablero. ¡Mueve ficha!",
             "🦗 Chispa estuvo leyendo: 3 repasos espaciados fijan más que 1 hora seguida.",
-            "🎯 Foco + pausa + foco: la receta secreta de Chispa para el día de hoy."
+            "🎯 Foco + pausa + foco: la receta secreta de Chispa para el día de hoy.",
+            "📵 Modo avión 20 min y el teléfono deja de robar tu atención. Pruébalo.",
+            "💧 Hidratado y con dos respiraciones profundas antes de empezar. Chispa lo jura.",
+            "🏃 5 min de movimiento antes de estudiar activan el cerebro mejor que el café.",
+            "🎯 Solo el primer paso importa ahora: ábrete a la primera tarea y el resto llega solo.",
+            "🔕 Notificaciones en silencio, puerta cerrada, un solo objetivo. Así se entra en zona.",
+            "🌿 Si tu mente divaga, no te regañes: nota el pensamiento, suéltalo y vuelve al texto.",
+            "⏱️ Bloques cortos de 10-15 min son igual de válidos que una hora seguida. Tú eliges.",
+            "🧩 Divide la tarea en partes mini y solo mira la primera pieza. El resto aparece solo.",
+            "🎧 Música sin letra o lluvia de fondo: pequeño truco para bloquear distracciones.",
+            "🛋️ Body doubling: estudia con alguien cerca (video incluido) y el foco llega más fácil."
         ]
         return general.randomElement()!
     }

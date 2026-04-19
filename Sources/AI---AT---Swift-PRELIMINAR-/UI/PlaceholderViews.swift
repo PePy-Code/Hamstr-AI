@@ -328,14 +328,19 @@ public struct HomeView: View {
             let msgs = [
                 "🌿 Agenda libre hoy. ¿Le damos al Trainer?",
                 "🎲 Día tranquilo: momento ideal para explorar algo nuevo.",
-                "🐛 Chispa dice: los días sin tareas son para aprender por curiosidad."
+                "🐛 Chispa dice: los días sin tareas son para aprender por curiosidad.",
+                "💧 Sin actividades. Hidratarte y respirar antes de empezar también cuenta.",
+                "🏃 Día libre: 5 min de movimiento ahora y tu cerebro te lo agradece luego."
             ]
             return msgs.randomElement()!
         }
         let msgs = [
             "💡 Un paso pequeño hoy vale más que un salto mañana.",
             "🧠 Chispa cargando consejo... mientras tanto, ¡abre una actividad!",
-            "🎯 Foco, pausa, foco: la receta de Chispa para hoy."
+            "🎯 Foco, pausa, foco: la receta de Chispa para hoy.",
+            "📵 Silencia el teléfono 20 min y notarás la diferencia.",
+            "🧩 Divide la primera tarea en pasos mini y solo mira el primero.",
+            "🎧 Música sin letra + escritorio despejado = modo concentración activado."
         ]
         return msgs.randomElement()!
     }
