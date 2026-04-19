@@ -342,7 +342,7 @@ private struct PersonalChatbotView: View {
     @State private var userInput = ""
     @State private var hasLoaded = false
     private let intelligence = AIConversationService()
-    private let maxActivitiesInSummary = 5
+    private static let maxActivitiesInSummary = 5
     private static let hourFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
@@ -489,7 +489,7 @@ private struct PersonalChatbotView: View {
     private func summarize(activities: [Activity], dayLabel: String) -> String {
         guard !activities.isEmpty else { return "" }
         let sorted = activities.sorted { $0.scheduledAt < $1.scheduledAt }
-        let items = sorted.prefix(maxActivitiesInSummary).map { activity in
+        let items = sorted.prefix(Self.maxActivitiesInSummary).map { activity in
             "\(hourAndMinute(activity.scheduledAt)) \(activity.title) [\(activity.status.rawValue)]"
         }.joined(separator: ", ")
         return "\(dayLabel): \(items)"

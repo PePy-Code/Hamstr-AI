@@ -194,7 +194,7 @@ private extension AIConversationService {
         """)
     }
 
-    func cleanChatResponse(_ rawText: String) -> String {
+    private func cleanChatResponse(_ rawText: String) -> String {
         var text = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return "" }
         text = stripCommonOpeningPhrase(from: text)
@@ -219,7 +219,7 @@ private extension AIConversationService {
         return compact.isEmpty ? text : compact
     }
 
-    func stripCommonOpeningPhrase(from text: String) -> String {
+    private func stripCommonOpeningPhrase(from text: String) -> String {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return "" }
 
