@@ -380,7 +380,7 @@ private struct ActivityLaunchPlaceholderView: View {
     @State private var remainingSeconds = 25 * 60
     @State private var isRunning = true
     @State private var isWorkPhase = true
-    @State private var pomodoroPhaseMessage = "En curso: temporizador de trabajo."
+    @State private var pomodoroPhaseMessage: String?
     private let workDurationSeconds = 25 * 60
     private let breakDurationSeconds = 5 * 60
     private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -526,7 +526,7 @@ private struct ActivityLaunchPlaceholderView: View {
             Text(formattedTime(remainingSeconds))
                 .font(.title2.monospacedDigit().weight(.bold))
 
-            Text(pomodoroPhaseMessage)
+            Text(pomodoroPhaseMessage ?? currentPomodoroPhaseMessage)
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -548,7 +548,7 @@ private struct ActivityLaunchPlaceholderView: View {
                     isRunning = false
                     isWorkPhase = true
                     remainingSeconds = workDurationSeconds
-                    pomodoroPhaseMessage = "Pomodoro reiniciado: listo para trabajo."
+                    pomodoroPhaseMessage = nil
                 }
                 .buttonStyle(.bordered)
             }
@@ -760,6 +760,10 @@ private struct ActivityLaunchPlaceholderView: View {
         let minutes = max(totalSeconds, 0) / 60
         let seconds = max(totalSeconds, 0) % 60
         return String(format: "%02d:%02d", minutes, seconds)
+    }
+
+    private var currentPomodoroPhaseMessage: String {
+        "En curso: temporizador de \(isWorkPhase ? "trabajo" : "descanso")."
     }
 
     private func playPomodoroTransitionSound() {
