@@ -358,7 +358,7 @@ func localAgentParserHardensTriviaPayload() async throws {
 @Test("AppleIntelligenceService usa API abierta cuando no hay agente local")
 func appleIntelligenceServiceUsesOpenSourceKnowledgeAnswer() async throws {
     let service = AppleIntelligenceService(
-        localAgent: nil,
+        localAgentConfiguration: .provided(nil),
         openSourceKnowledge: MockOpenSourceKnowledge(answer: "Respuesta abierta")
     )
 
@@ -375,7 +375,7 @@ func appleIntelligenceServiceUsesOpenSourceKnowledgeAnswer() async throws {
 @Test("AppleIntelligenceService responde fallback cuando API abierta no devuelve contenido")
 func appleIntelligenceServiceFallsBackWhenOpenSourceFails() async throws {
     let service = AppleIntelligenceService(
-        localAgent: nil,
+        localAgentConfiguration: .provided(nil),
         openSourceKnowledge: MockOpenSourceKnowledge(answer: nil)
     )
 

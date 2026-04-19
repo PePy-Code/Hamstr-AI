@@ -4,16 +4,26 @@ public protocol OpenSourceKnowledgeProviding: Sendable {
     func answer(for query: String) async -> String?
 }
 
+public enum LocalAgentConfiguration: Sendable {
+    case automatic
+    case provided((any LocalAcademicAgentProviding)?)
+}
+
 public struct AppleIntelligenceService: AppleIntelligenceProviding {
     private let fallback = LocalFallbackGenerator()
     private let localAgent: LocalAcademicAgentProviding?
     private let openSourceKnowledge: OpenSourceKnowledgeProviding
 
     public init(
-        localAgent: LocalAcademicAgentProviding? = AppleIntelligenceService.defaultLocalAgent(),
+        localAgentConfiguration: LocalAgentConfiguration = .automatic,
         openSourceKnowledge: OpenSourceKnowledgeProviding = OpenSourceKnowledgeService()
     ) {
-        self.localAgent = localAgent
+        switch localAgentConfiguration {
+        case .automatic:
+            self.localAgent = AppleIntelligenceService.defaultLocalAgent()
+        case let .provided(agent):
+            self.localAgent = agent
+        }
         self.openSourceKnowledge = openSourceKnowledge
     }
 
