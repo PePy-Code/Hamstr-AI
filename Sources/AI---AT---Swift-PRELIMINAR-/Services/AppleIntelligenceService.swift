@@ -1,6 +1,6 @@
 import Foundation
 
-protocol OpenSourceKnowledgeProviding: Sendable {
+public protocol OpenSourceKnowledgeProviding: Sendable {
     func answer(for query: String) async -> String?
 }
 
@@ -9,13 +9,9 @@ public struct AppleIntelligenceService: AppleIntelligenceProviding {
     private let localAgent: LocalAcademicAgentProviding?
     private let openSourceKnowledge: OpenSourceKnowledgeProviding
 
-    public init(localAgent: LocalAcademicAgentProviding? = nil) {
-        self.init(localAgent: localAgent, openSourceKnowledge: OpenSourceKnowledgeService())
-    }
-
-    init(
-        localAgent: LocalAcademicAgentProviding?,
-        openSourceKnowledge: OpenSourceKnowledgeProviding
+    public init(
+        localAgent: LocalAcademicAgentProviding? = nil,
+        openSourceKnowledge: OpenSourceKnowledgeProviding = OpenSourceKnowledgeService()
     ) {
         self.localAgent = localAgent ?? AppleIntelligenceService.makeDefaultLocalAgent()
         self.openSourceKnowledge = openSourceKnowledge
