@@ -63,7 +63,13 @@ public struct OpenSourceKnowledgeService: OpenSourceKnowledgeProviding {
             messages: [
                 .init(
                     role: "system",
-                    content: "Responde siempre en español con información clara, breve y útil para estudiantes. Si no sabes algo, dilo con honestidad."
+                    content: """
+                    Responde siempre en español con información clara, breve y útil para estudiantes.
+                    No resuelvas tareas, ejercicios, exámenes o trabajos completos.
+                    Si el usuario pide resolver algo directamente, rechaza de forma amable y ofrece fuentes directas de estudio (URLs completas) relacionadas con su consulta.
+                    En inicio de actividad, prioriza compartir fuentes directas confiables cuando existan; si no hay fuentes claras, responde con un saludo amigable.
+                    Si no sabes algo, dilo con honestidad.
+                    """
                 ),
                 .init(role: "user", content: query)
             ],

@@ -386,6 +386,40 @@ func aiConversationServiceFallsBackWhenOpenSourceFails() async throws {
     #expect(!answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 }
 
+@Test("AIConversationService bloquea solicitudes de resolución directa y entrega fuentes")
+func aiConversationServiceBlocksDirectSolveRequestsWithSources() async throws {
+    let service = AIConversationService(
+        openSourceKnowledge: MockOpenSourceKnowledge(
+            answerProvider: { query in
+                if query.contains("No resuelvas el trabajo") {
+                    return "Fuente directa: https://es.khanacademy.org/math/algebra"
+                }
+                return nil
+            }
+        )
+    )
+
+    let answer = try await service.chatReply(
+        userMessage: "Resuélveme este ejercicio de álgebra",
+        activityTitle: "Álgebra",
+        topic: "Ecuaciones lineales",
+        type: .task
+    )
+
+    #expect(answer.lowercased().contains("no puedo resolver"))
+    #expect(answer.contains("https://es.khanacademy.org/math/algebra"))
+}
+
+@Test("AIConversationService devuelve saludo amigable si no hay fuentes en inicio")
+func aiConversationServiceReturnsFriendlyGreetingWhenNoStartSources() async throws {
+    let service = AIConversationService(openSourceKnowledge: MockOpenSourceKnowledge(answer: nil))
+
+    let material = try await service.supportMaterial(for: "Repaso de química", type: .study)
+
+    #expect(material.count == 1)
+    #expect(material[0].contains("¡Hola!"))
+}
+
 @Test("AIConversationService por defecto prioriza agente externo open source")
 func aiConversationServiceDefaultUsesOpenSourceProvider() async throws {
     let service = AIConversationService(openSourceKnowledge: MockOpenSourceKnowledge(answer: "Respuesta externa"))
@@ -514,11 +548,19 @@ private struct MockIntelligence: AIConversationProviding {
 }
 
 private struct MockOpenSourceKnowledge: OpenSourceKnowledgeProviding {
-    let answer: String?
+    let answerProvider: @Sendable (String) -> String?
+
+    init(answer: String?) {
+        self.answerProvider = { _ in answer }
+    }
+
+    init(answerProvider: @escaping @Sendable (String) -> String?) {
+        self.answerProvider = answerProvider
+    }
 
     func answer(for query: String) async -> String? {
         guard !query.isEmpty else { return nil }
-        return answer
+        return answerProvider(query)
     }
 }
 

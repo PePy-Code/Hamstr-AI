@@ -616,7 +616,11 @@ private struct ActivityLaunchPlaceholderView: View {
         await MainActor.run {
             messages.append(ActivityChatMessage(role: .user, text: "Compartí una imagen (\(sizeText)) para revisión.", isImageAttachment: true))
         }
-        let support = (try? await intelligence.supportMaterial(for: normalizedTopic, type: activity.type)) ?? []
+        let supportContext = [activity.title, normalizedTopic]
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " - ")
+        let support = (try? await intelligence.supportMaterial(for: supportContext, type: activity.type)) ?? []
         let bulletText = support.isEmpty ? "" : "\n" + support.map { "• \($0)" }.joined(separator: "\n")
         await MainActor.run {
             messages.append(

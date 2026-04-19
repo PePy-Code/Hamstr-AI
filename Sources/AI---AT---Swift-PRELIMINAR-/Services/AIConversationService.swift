@@ -16,21 +16,21 @@ public struct AIConversationService: AIConversationProviding {
 
     public func supportMaterial(for topic: String, type: ActivityType) async throws -> [String] {
         let safeTopic = topic.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !safeTopic.isEmpty else { return fallback.defaultSupportMaterial(for: "tema general") }
+        guard !safeTopic.isEmpty else { return [friendlyGreeting()] }
 
-        if let openAnswer = await openSourceKnowledge.answer(for: "Material de apoyo para: \(safeTopic)") {
-            let suggestions = openAnswer
-                .components(separatedBy: CharacterSet(charactersIn: ".\n"))
-                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                .filter { !$0.isEmpty }
-            if !suggestions.isEmpty {
-                return Array(suggestions.prefix(3))
-            }
+        if let openAnswer = await openSourceKnowledge.answer(for: startSupportPrompt(for: safeTopic)) {
+            let directSources = extractDirectSources(from: openAnswer)
+            if !directSources.isEmpty { return Array(directSources.prefix(3)) }
+        }
+
+        if let openAnswer = await openSourceKnowledge.answer(for: safeTopic) {
+            let directSources = extractDirectSources(from: openAnswer)
+            if !directSources.isEmpty { return Array(directSources.prefix(3)) }
         }
 
         switch type {
         case .task, .study:
-            return fallback.defaultSupportMaterial(for: safeTopic)
+            return [friendlyGreeting()]
         case .other:
             return []
         }
@@ -50,9 +50,31 @@ public struct AIConversationService: AIConversationProviding {
             .joined(separator: " - ")
         let query = cleanedMessage.isEmpty ? fallbackQuery : cleanedMessage
         let displayContext = query.isEmpty ? "tu actividad actual" : query
+        let asksToSolveDirectly = isDirectSolveRequest(cleanedMessage)
+        if asksToSolveDirectly {
+            let sourceQuery = sourceOnlyPrompt(for: displayContext)
+            if let sourceAnswer = await openSourceKnowledge.answer(for: sourceQuery) {
+                let directSources = extractDirectSources(from: sourceAnswer)
+                if !directSources.isEmpty {
+                    return refusalWithSources(directSources)
+                }
+                let cleanedSourceAnswer = sourceAnswer.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !cleanedSourceAnswer.isEmpty {
+                    return refusalWithoutSources(context: displayContext) + "\n\n" + cleanedSourceAnswer
+                }
+            }
+            return refusalWithoutSources(context: displayContext)
+        }
+
+        let guardedQuery = guidedChatPrompt(for: query, activityTitle: cleanedTitle, topic: cleanedTopic)
         if let openAnswer = await openSourceKnowledge.answer(for: query),
            !openAnswer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return openAnswer
+            return openAnswer.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        if let guardedOpenAnswer = await openSourceKnowledge.answer(for: guardedQuery),
+           !guardedOpenAnswer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return guardedOpenAnswer.trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
         return fallbackChatReply(title: cleanedTitle, context: displayContext)
@@ -76,6 +98,76 @@ public struct AIConversationService: AIConversationProviding {
 }
 
 private extension AIConversationService {
+    func startSupportPrompt(for context: String) -> String {
+        """
+        Inicio de actividad de estudio: \(context).
+        Devuelve hasta 3 fuentes directas confiables (URL completas) para estudiar ese tema.
+        Formato preferido por línea: "Fuente directa: https://...".
+        Si no encuentras fuentes directas, responde solo: SALUDO_AMIGABLE.
+        """
+    }
+
+    func guidedChatPrompt(for query: String, activityTitle: String, topic: String) -> String {
+        let safeQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let safeTitle = activityTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        let safeTopic = topic.trimmingCharacters(in: .whitespacesAndNewlines)
+        return """
+        Contexto de actividad:
+        - Título: \(safeTitle.isEmpty ? "sin título" : safeTitle)
+        - Tema: \(safeTopic.isEmpty ? "sin tema" : safeTopic)
+        Consulta del usuario: \(safeQuery.isEmpty ? "sin consulta explícita" : safeQuery)
+        """
+    }
+
+    func sourceOnlyPrompt(for context: String) -> String {
+        """
+        El usuario pidió que le resuelvan una tarea/ejercicio sobre: \(context).
+        No resuelvas el trabajo. Devuelve solo fuentes directas de estudio (URLs completas) relacionadas.
+        Formato por línea: "Fuente directa: https://...".
+        """
+    }
+
+    func extractDirectSources(from text: String) -> [String] {
+        let pattern = #"https?://[^\s\)\]\}>,]+"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { return [] }
+        let fullRange = NSRange(text.startIndex..<text.endIndex, in: text)
+        let matches = regex.matches(in: text, options: [], range: fullRange)
+        let urls = matches.compactMap { match -> String? in
+            guard let range = Range(match.range, in: text) else { return nil }
+            return String(text[range]).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        var seen = Set<String>()
+        return urls
+            .filter { seen.insert($0).inserted }
+            .prefix(3)
+            .map { "Fuente directa: \($0)" }
+    }
+
+    func isDirectSolveRequest(_ message: String) -> Bool {
+        let normalized = " \(message.lowercased()) "
+        let solveTokens = [
+            " resuelve ", " resuélv", " hazme la tarea ", " haz la tarea ", " dame la respuesta ",
+            " responde por mí ", " escribe el ensayo ", " dame el resultado ", " soluciona "
+        ]
+        return solveTokens.contains { normalized.contains($0) }
+    }
+
+    func friendlyGreeting() -> String {
+        "¡Hola! No encontré fuentes directas ahora mismo, pero puedo ayudarte a enfocar tu estudio paso a paso."
+    }
+
+    func refusalWithSources(_ sources: [String]) -> String {
+        let bulletList = sources.prefix(3).map { "• \($0)" }.joined(separator: "\n")
+        return """
+        No puedo resolver tareas o ejercicios por ti, pero sí puedo orientarte con fuentes directas de estudio:
+        \(bulletList)
+        """
+    }
+
+    func refusalWithoutSources(context: String) -> String {
+        "No puedo resolver tareas o ejercicios por ti. Si quieres, te guío con un plan de estudio sobre \"\(context)\" y te comparto fuentes directas."
+    }
+
     func fallbackChatReply(title: String, context: String) -> String {
         let safeTitle = title.isEmpty ? "tu actividad" : title
         return """
