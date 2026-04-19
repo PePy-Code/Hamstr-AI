@@ -201,9 +201,12 @@ public struct HomeView: View {
     @ViewBuilder
     private func agendaCell(for activity: Activity?) -> some View {
         if let activity {
+            let isCompleted = activity.status == .completed
             HStack(spacing: 6) {
                 Button {
-                    pendingStartActivity = activity
+                    if !isCompleted {
+                        pendingStartActivity = activity
+                    }
                 } label: {
                     HStack(spacing: 6) {
                         Circle()
@@ -218,15 +221,19 @@ public struct HomeView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
                 .buttonStyle(.plain)
+                .disabled(isCompleted)
 
                 Button {
-                    editingActivity = activity
+                    if !isCompleted {
+                        editingActivity = activity
+                    }
                 } label: {
                     Image(systemName: "pencil")
                         .font(.caption.weight(.semibold))
                         .padding(6)
                 }
                 .buttonStyle(.borderless)
+                .disabled(isCompleted)
             }
         } else {
             Button(action: { openWeeklyAgenda = true }) {
@@ -968,6 +975,7 @@ private struct WeeklyAgendaView: View {
                                                     .clipShape(Capsule())
                                                     .contentShape(Rectangle())
                                                     .onLongPressGesture(minimumDuration: 0.5) {
+                                                        guard activity.status != .completed else { return }
                                                         editingActivity = activity
                                                     }
                                             }

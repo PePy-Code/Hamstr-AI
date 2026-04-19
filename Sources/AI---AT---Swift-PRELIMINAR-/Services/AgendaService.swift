@@ -83,6 +83,7 @@ public actor AgendaService {
     public func startActivity(id: UUID, now: Date = Date()) async throws -> ActivitySession? {
         reconcileFailedActivities(now: now)
         guard let index = activities.firstIndex(where: { $0.id == id }) else { return nil }
+        guard activities[index].status != .completed else { return nil }
         activities[index].status = .inProgress
         let activity = activities[index]
 
