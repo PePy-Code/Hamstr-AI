@@ -171,27 +171,21 @@ private extension AIConversationService {
     }
 
     func friendlyGreeting() -> String {
-        "¡Hola! No encontré fuentes directas ahora mismo, pero puedo ayudarte a enfocar tu estudio paso a paso."
+        "Hola, soy Chispa ✨ No encontré fuentes directas ahora mismo, pero puedo ayudarte a enfocar tu estudio paso a paso."
     }
 
     func refusalWithSources(_ sources: [String]) -> String {
         let bulletList = sources.prefix(3).map { "• \($0)" }.joined(separator: "\n")
-        return """
-        No puedo resolver tareas o ejercicios por ti, pero sí puedo orientarte con fuentes directas de estudio:
-        \(bulletList)
-        """
+        return "Eso es algo que debes desarrollar tú mismo — así aprenderás más. Pero te dejo estas fuentes para orientarte:\n\n\(bulletList)"
     }
 
     func refusalWithoutSources(context: String) -> String {
-        "No puedo resolver tareas o ejercicios por ti. Si quieres, te guío con un plan de estudio sobre \"\(context)\" y te comparto fuentes directas."
+        "Prefiero no resolver eso directamente — te quedarías sin aprender. 😊\n\nSi quieres, te armo un plan de estudio sobre \"\(context)\" y te comparto fuentes directas."
     }
 
     func fallbackChatReply(title: String, context: String) -> String {
         let safeTitle = title.isEmpty ? "tu actividad" : title
-        return cleanChatResponse("""
-        Entendido. Puedo ayudarte con "\(safeTitle)" y responder directamente tu consulta sobre "\(context)".
-        Si quieres, dime la pregunta exacta o comparte más contexto para darte una respuesta más precisa.
-        """)
+        return cleanChatResponse("Entendido. Puedo ayudarte con \"\(safeTitle)\" y responder directamente tu consulta sobre \"\(context)\".\n\nDime la pregunta exacta o dame más contexto y te doy una respuesta concreta. 🎯")
     }
 
     private func cleanChatResponse(_ rawText: String) -> String {
@@ -199,24 +193,29 @@ private extension AIConversationService {
         guard !text.isEmpty else { return "" }
         text = stripCommonOpeningPhrase(from: text)
 
+        // Collapse runs of 3+ blank lines down to two (one blank line between paragraphs).
         text = text.replacingOccurrences(of: #"\n{3,}"#, with: "\n\n", options: .regularExpression)
+        // Collapse inline multiple spaces/tabs to a single space.
         text = text.replacingOccurrences(of: #"[ \t]{2,}"#, with: " ", options: .regularExpression)
 
-        let paragraphs = text.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-        var compactParagraphs: [String] = []
-        var seenNormalizedParagraphs = Set<String>()
-        for paragraph in paragraphs where !paragraph.isEmpty {
-            let cleanedParagraph = stripCommonOpeningPhrase(from: paragraph)
+        // Deduplicate consecutive identical paragraphs while preserving paragraph breaks.
+        let rawParagraphs = text.components(separatedBy: "\n\n")
+        var dedupedParagraphs: [String] = []
+        var seenNormalized = Set<String>()
+        for paragraph in rawParagraphs {
+            let trimmedParagraph = paragraph.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedParagraph.isEmpty else { continue }
+            let cleanedParagraph = stripCommonOpeningPhrase(from: trimmedParagraph)
             guard !cleanedParagraph.isEmpty else { continue }
             let normalized = cleanedParagraph.lowercased()
-            guard !seenNormalizedParagraphs.contains(normalized) else { continue }
-            seenNormalizedParagraphs.insert(normalized)
-            compactParagraphs.append(cleanedParagraph)
+            guard !seenNormalized.contains(normalized) else { continue }
+            seenNormalized.insert(normalized)
+            dedupedParagraphs.append(cleanedParagraph)
         }
 
-        let compact = compactParagraphs.joined(separator: "\n")
+        let result = dedupedParagraphs.joined(separator: "\n\n")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        return compact.isEmpty ? text : compact
+        return result.isEmpty ? text : result
     }
 
     private func stripCommonOpeningPhrase(from text: String) -> String {
