@@ -467,7 +467,12 @@ public struct HomeView: View {
         .environment(\.dynamicTypeSize, preferredDynamicTypeSize)
         .task(id: showLaunchLoadingScreen) {
             guard showLaunchLoadingScreen else { return }
-            try? await Task.sleep(for: .seconds(1))
+            do {
+                try await Task.sleep(for: .seconds(1))
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
             withAnimation(.easeOut(duration: 0.2)) {
                 showLaunchLoadingScreen = false
             }
@@ -760,6 +765,7 @@ private struct AppLaunchLoadingView: View {
                 en: "Loading screen with hamster"
             )
         )
+        .accessibilityAddTraits(.isStaticText)
     }
 }
 
