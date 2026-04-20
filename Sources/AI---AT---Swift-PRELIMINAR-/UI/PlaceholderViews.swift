@@ -99,9 +99,43 @@ private enum ScreenPalette {
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
+    private static let vividWarmSurface = LinearGradient(
+        colors: [pumpkinOrange.opacity(0.36), mexicanPink.opacity(0.30)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    private static let vividSoftSurface = LinearGradient(
+        colors: [pastelPink.opacity(0.40), mintGreen.opacity(0.32)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    private static let vividAgendaSurface = LinearGradient(
+        colors: [mintGreen.opacity(0.28), pumpkinOrange.opacity(0.22)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    private static let vividTrainerBackground = LinearGradient(
+        colors: [neonPurple, mexicanPink.opacity(0.82), pastelPink.opacity(0.68)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    private static let vividTrainerSurface = LinearGradient(
+        colors: [mintGreen.opacity(0.28), pastelPink.opacity(0.30), pumpkinOrange.opacity(0.22)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
 
     static let homeBackground = neonBackground
     static let homeSurface = neonSurface
+    static let homeStreakSurface = vividWarmSurface
+    static let homeGoalSurface = vividSoftSurface
+    static let homeMascotSurface = LinearGradient(
+        colors: [pastelPink.opacity(0.38), mexicanPink.opacity(0.24)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    static let homeAgendaSurface = vividAgendaSurface
+    static let agendaFrameStroke = mexicanPink.opacity(0.40)
     static let homeBubbleAssistant = pumpkinOrange.opacity(0.24)
     static let homeBubbleUser = mexicanPink.opacity(0.20)
 
@@ -113,8 +147,8 @@ private enum ScreenPalette {
     static let agendaBackground = neonBackground
     static let agendaSurface = neonSurface
 
-    static let trainerBackground = neonBackground
-    static let trainerSurface = neonSurface
+    static let trainerBackground = vividTrainerBackground
+    static let trainerSurface = vividTrainerSurface
 
     static let settingsBackground = neonBackground
 }
@@ -159,8 +193,12 @@ public struct HomeView: View {
                         .buttonStyle(.borderedProminent)
                     }
                     .padding()
-                    .background(ScreenPalette.homeSurface)
+                    .background(ScreenPalette.homeStreakSurface)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(ScreenPalette.agendaFrameStroke, lineWidth: 1)
+                    )
 
                     dailyGoalsCard
 
@@ -181,11 +219,11 @@ public struct HomeView: View {
                             }
                         }
                         .padding()
-                        .background(ScreenPalette.homeSurface)
+                        .background(ScreenPalette.homeMascotSurface)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color(.separator), lineWidth: 1)
+                                .stroke(ScreenPalette.agendaFrameStroke, lineWidth: 1)
                         )
                     }
                     .buttonStyle(.plain)
@@ -346,8 +384,12 @@ public struct HomeView: View {
             }
         }
         .padding()
-        .background(ScreenPalette.homeSurface)
+        .background(ScreenPalette.homeAgendaSurface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(ScreenPalette.agendaFrameStroke, lineWidth: 1)
+        )
     }
 
     private var dailyGoalsCard: some View {
@@ -369,8 +411,12 @@ public struct HomeView: View {
                 .foregroundStyle(.secondary)
         }
         .padding()
-        .background(ScreenPalette.homeSurface)
+        .background(ScreenPalette.homeGoalSurface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(ScreenPalette.agendaFrameStroke, lineWidth: 1)
+        )
     }
 
     @ViewBuilder
@@ -621,6 +667,13 @@ private struct PersonalChatbotView: View {
             }
             .frame(maxHeight: .infinity)
         }
+        .padding()
+        .background(ScreenPalette.homeMascotSurface)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(ScreenPalette.agendaFrameStroke, lineWidth: 1)
+        )
     }
 
     private var chatComposer: some View {
@@ -1573,6 +1626,13 @@ private struct WeeklyAgendaView: View {
                 }
                 .padding(.horizontal, 4)
             }
+            .padding(8)
+            .background(ScreenPalette.homeAgendaSurface)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(ScreenPalette.agendaFrameStroke, lineWidth: 1)
+            )
 
             HStack {
                 Spacer()
@@ -2229,105 +2289,115 @@ public struct MentalTrainerView: View {
     public init() {}
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Entrenador Mental")
-                .font(.title2.weight(.semibold))
+        ZStack {
+            ScreenPalette.trainerBackground.ignoresSafeArea()
 
-            if let errorMessage {
-                Text(errorMessage)
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-            }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Entrenador Mental")
+                        .font(.title2.weight(.semibold))
 
-            if !hasStarted {
-                if let scheduledMotivationMessage {
-                    Label(scheduledMotivationMessage.body, systemImage: "bell.badge")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-                Text("Responde trivia de opción múltiple con 15 segundos por pregunta. La partida termina en el primer error.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                Button(isLoading ? "Cargando..." : "Iniciar entrenamiento") {
-                    Task { await startSession() }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(isLoading)
-            } else {
-                HStack {
-                    Label("Correctas: \(correctAnswers)", systemImage: "checkmark.seal.fill")
-                    Spacer()
-                    Label("Fallos: \(incorrectAnswers)", systemImage: "xmark.seal.fill")
-                }
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
 
-                if let currentQuestion {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Pregunta \(currentQuestionIndex + 1)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(currentQuestion.prompt)
-                            .font(.headline)
-
-                        if questionDeadline != nil {
-                            Text("Tiempo restante: \(remainingSeconds)s")
-                                .font(.subheadline.monospacedDigit())
-                                .foregroundStyle(remainingSeconds <= 3 ? .red : .secondary)
+                    if !hasStarted {
+                        if let scheduledMotivationMessage {
+                            Label(scheduledMotivationMessage.body, systemImage: "bell.badge")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
                         }
+                        Text("Responde trivia de opción múltiple con 15 segundos por pregunta. La partida termina en el primer error.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        Button(isLoading ? "Cargando..." : "Iniciar entrenamiento") {
+                            Task { await startSession() }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(isLoading)
+                    } else {
+                        HStack {
+                            Label("Correctas: \(correctAnswers)", systemImage: "checkmark.seal.fill")
+                            Spacer()
+                            Label("Fallos: \(incorrectAnswers)", systemImage: "xmark.seal.fill")
+                        }
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
 
-                        ForEach(Array(currentQuestion.options.enumerated()), id: \.offset) { index, option in
-                            Button {
-                                Task { await answer(optionIndex: index) }
-                            } label: {
-                                HStack {
-                                    Text(option)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                    if questionAnswered {
-                                        if showCorrectAnswerIndicator {
-                                            if index == correctOptionIndex {
-                                                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                                            } else if index == answeredOptionIndex {
-                                                Image(systemName: "xmark.circle.fill").foregroundStyle(.red)
+                        if let currentQuestion {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Pregunta \(currentQuestionIndex + 1)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text(currentQuestion.prompt)
+                                    .font(.headline)
+
+                                if questionDeadline != nil {
+                                    Text("Tiempo restante: \(remainingSeconds)s")
+                                        .font(.subheadline.monospacedDigit())
+                                        .foregroundStyle(remainingSeconds <= 3 ? .red : .secondary)
+                                }
+
+                                ForEach(Array(currentQuestion.options.enumerated()), id: \.offset) { index, option in
+                                    Button {
+                                        Task { await answer(optionIndex: index) }
+                                    } label: {
+                                        HStack {
+                                            Text(option)
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                            if questionAnswered {
+                                                if showCorrectAnswerIndicator {
+                                                    if index == correctOptionIndex {
+                                                        Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                                                    } else if index == answeredOptionIndex {
+                                                        Image(systemName: "xmark.circle.fill").foregroundStyle(.red)
+                                                    }
+                                                } else if index == answeredOptionIndex {
+                                                    Image(systemName: "exclamationmark.circle.fill").foregroundStyle(.yellow)
+                                                }
                                             }
-                                        } else if index == answeredOptionIndex {
-                                            Image(systemName: "exclamationmark.circle.fill").foregroundStyle(.yellow)
                                         }
                                     }
+                                    .buttonStyle(.bordered)
+                                    .disabled(questionAnswered || sessionCompleted || isLoading)
                                 }
                             }
-                            .buttonStyle(.bordered)
-                            .disabled(questionAnswered || sessionCompleted || isLoading)
+                            .padding()
+                            .background(ScreenPalette.trainerSurface)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(ScreenPalette.agendaFrameStroke, lineWidth: 1)
+                            )
+                        }
+
+                        if let feedbackMessage {
+                            Text(feedbackMessage)
+                                .font(.footnote)
+                                .foregroundStyle(feedbackColor)
+                        }
+
+                        HStack(spacing: 10) {
+                            Button("Nueva sesión") {
+                                Task { await startSession() }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(isLoading)
+
+                            if sessionCompleted || isGameOver {
+                                Text(isGameOver ? "Game Over" : "Sesión finalizada")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(isGameOver ? .red : .green)
+                            }
                         }
                     }
-                    .padding()
-                    .background(ScreenPalette.trainerSurface)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
-
-                if let feedbackMessage {
-                    Text(feedbackMessage)
-                        .font(.footnote)
-                        .foregroundStyle(feedbackColor)
-                }
-
-                HStack(spacing: 10) {
-                    Button("Nueva sesión") {
-                        Task { await startSession() }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(isLoading)
-
-                    if sessionCompleted || isGameOver {
-                        Text(isGameOver ? "Game Over" : "Sesión finalizada")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(isGameOver ? .red : .green)
-                    }
-                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding()
             }
         }
-        .padding()
-        .background(ScreenPalette.trainerBackground.ignoresSafeArea())
         .task {
             guard !hasScheduledMotivation else { return }
             hasScheduledMotivation = true
