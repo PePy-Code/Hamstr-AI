@@ -7,6 +7,10 @@ public struct OpenSourceKnowledgeService: OpenSourceKnowledgeProviding {
     private let session: URLSession
     private let groqAPIKey: String?
     private let groqModel: String
+    /// Presupuesto conservador para reducir costo/latencia:
+    /// - menos turnos de historial para contexto reciente suficiente,
+    /// - límites de caracteres por turno/consulta para evitar payloads extensos,
+    /// - tope de salida para respuestas útiles pero breves.
     private enum TokenBudget {
         static let historyTurns = 6
         static let maxHistoryTurnCharacters = 320
