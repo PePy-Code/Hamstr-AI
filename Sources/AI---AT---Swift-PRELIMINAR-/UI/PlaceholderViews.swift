@@ -755,10 +755,13 @@ public struct HomeView: View {
 }
 
 private struct AppLaunchLoadingView: View {
+    private static let hamletImageName = "Hamlet"
+    private static let hamletImageExtension = "png"
+
     var body: some View {
         ZStack {
             ScreenPalette.homeBackground.ignoresSafeArea()
-            Image("Hamlet", bundle: .module)
+            launchImage
                 .resizable()
                 .scaledToFit()
                 .frame(width: 220, height: 220)
@@ -771,6 +774,38 @@ private struct AppLaunchLoadingView: View {
                 en: "Loading application, please wait"
             )
         )
+    }
+
+    private var launchImage: Image {
+        if let hamletImage = loadHamletImage() {
+            return hamletImage
+        }
+        return Image(systemName: "photo")
+    }
+
+    private func loadHamletImage() -> Image? {
+        let resourceURL = Bundle.module.url(
+            forResource: Self.hamletImageName,
+            withExtension: Self.hamletImageExtension
+        )
+
+        #if canImport(UIKit)
+        if let resourceURL, let image = UIImage(contentsOfFile: resourceURL.path()) {
+            return Image(uiImage: image)
+        }
+        if let image = UIImage(named: Self.hamletImageName) {
+            return Image(uiImage: image)
+        }
+        #elseif canImport(AppKit)
+        if let resourceURL, let image = NSImage(contentsOf: resourceURL) {
+            return Image(nsImage: image)
+        }
+        if let image = NSImage(named: Self.hamletImageName) {
+            return Image(nsImage: image)
+        }
+        #endif
+
+        return nil
     }
 }
 
