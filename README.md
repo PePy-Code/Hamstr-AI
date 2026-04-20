@@ -1,33 +1,65 @@
-# AI---AT---Swift-PRELIMINAR-
+# Hamstr AI 🐹
 
-Entrenador académico en Swift para apoyar a estudiantes con problemas de atención y TDAH.
+Un entrenador académico en Swift pensado para estudiantes con problemas de atención y TDAH.
 
-## ¿Qué es este proyecto?
+La idea del proyecto es ayudarte a **estudiar con estructura**, mantener la motivación y recibir apoyo sin caer en respuestas automáticas que te resuelvan todo.
 
-Este repositorio contiene una **librería Swift Package Manager (SPM)** con la lógica principal de una app de entrenamiento académico:
-- gestión de agenda,
-- sesiones de estudio tipo Pomodoro,
-- chat de apoyo con guardrails,
-- entrenamiento mental por trivia,
-- motor de racha,
-- planificación de notificaciones.
+## ¿Qué incluye?
 
-> La UI final de app iOS debe vivir en un proyecto Xcode separado que consuma este paquete.
+Este repositorio contiene una librería en **Swift Package Manager (SPM)** con la lógica principal de la app:
+
+- agenda académica (crear, editar, completar actividades)
+- sesiones tipo Pomodoro con apoyo contextual
+- chat de apoyo con guardrails
+- entrenador mental tipo trivia
+- sistema de racha (streak)
+- planificación de notificaciones
+
+> La interfaz final de iOS vive en un proyecto Xcode separado que consume este paquete.
+
+## Características más llamativas ✨
+
+- **Chat que orienta en lugar de resolver tareas**: prioriza guía y fuentes útiles.
+- **Modo estudio con contexto**: al iniciar una actividad, intenta traer material de apoyo.
+- **Entrenador mental dinámico**: trivia de opción múltiple, avance en tiempo real y fin al primer error.
+- **Racha inteligente**: recompensa constancia diaria (agenda o sesión válida de entrenamiento).
+- **Persistencia local simple y robusta**: datos guardados en JSON con `Codable`.
+
+## Frameworks y tecnologías usadas
+
+- **Lenguaje:** Swift 6 (modo Swift 6)
+- **Gestión del proyecto:** Swift Package Manager (SPM)
+- **Plataformas objetivo:** iOS 17+ y macOS 14+
+- **Frameworks principales:**
+  - `Foundation`
+  - `FoundationNetworking` (cuando aplica)
+  - `SwiftUI`
+  - `UserNotifications`
+  - `PhotosUI`
+  - `AudioToolbox`
+  - `UIKit` / `AppKit` (según plataforma)
+- **Concurrencia moderna:** `async/await`, `actor`, `Sendable`
+- **Persistencia:** JSON + `Codable`
+- **APIs externas:**
+  - Groq Chat Completions API
+  - DuckDuckGo Instant Answer API
+  - Wikipedia OpenSearch API
+- **Testing:** Swift Testing (`import Testing`)
 
 ## Configuración de la API de Groq
 
-La integración de Groq está implementada en:
+Integración principal:
+
 - `Sources/AI---AT---Swift-PRELIMINAR-/Services/OpenSourceKnowledgeService.swift`
 
 Modelo configurado actualmente:
+
 - `llama-3.3-70b-versatile`
 
-### Opción recomendada: variable de entorno
+### Opción recomendada (variable de entorno)
 
-1. Obtén tu API key en Groq.
-2. Define la variable de entorno `GROQ_API_KEY` antes de ejecutar pruebas o la app.
-
-Ejemplo (macOS/Linux):
+1. Consigue tu API key en Groq.
+2. Define la variable `GROQ_API_KEY` antes de ejecutar pruebas o la app.
 
 ```bash
 export GROQ_API_KEY="tu_api_key"
@@ -35,7 +67,7 @@ export GROQ_API_KEY="tu_api_key"
 
 ### Opción temporal para desarrollo local
 
-1. Abre este archivo:
+1. Abre:
    - `Sources/AI---AT---Swift-PRELIMINAR-/Configuration/LocalSecrets.swift`
 2. Asigna tu key en `LocalSecrets.groqAPIKey`.
 
@@ -43,57 +75,16 @@ export GROQ_API_KEY="tu_api_key"
 static let groqAPIKey: String = "tu_api_key"
 ```
 
-3. No subas keys reales al repositorio.
+3. No subas claves reales al repositorio.
 
 ### Prioridad de credenciales
 
-La resolución de la key sigue este orden:
 1. `GROQ_API_KEY` (entorno)
 2. `LocalSecrets.groqAPIKey`
 
 Si no hay key, el servicio usa fuentes abiertas (DuckDuckGo/Wikipedia) y fallback local.
 
-## Features principales
-
-- **Agenda académica (CRUD)**
-  - crear, listar, actualizar, completar, marcar pendiente y eliminar actividades.
-- **Sesión de actividad con apoyo contextual**
-  - al iniciar estudio/tarea, intenta obtener fuentes directas para estudiar.
-- **Persistencia local de agenda**
-  - guardado/carga en JSON (`agenda.json`) con `Codable`.
-- **Chat de apoyo académico con guardrails**
-  - evita resolver tareas directamente,
-  - prioriza orientación y fuentes de estudio.
-- **Entrenador mental (trivia)**
-  - preguntas de opción múltiple,
-  - continúa en tiempo real y termina al primer error.
-- **Motor de racha**
-  - sube por actividades del día completadas,
-  - o por sesión mental válida en día sin agenda.
-- **Notificaciones planificadas**
-  - recordatorio diario,
-  - motivación de entrenamiento mental,
-  - finalización de Pomodoro.
-
-## Frameworks, APIs y tecnologías utilizadas
-
-- **Lenguaje:** Swift 6
-- **Gestión de paquete:** Swift Package Manager (SPM)
-- **Plataformas objetivo:** iOS 17+, macOS 14+
-- **Frameworks base:**
-  - `Foundation`
-  - `FoundationNetworking` (cuando aplica)
-- **Concurrencia:** `async/await`, `actor`, `Sendable`
-- **Persistencia local:** archivo JSON con `Codable`
-- **APIs externas:**
-  - **Groq Chat Completions API** (`https://api.groq.com/openai/v1/chat/completions`)
-  - **DuckDuckGo Instant Answer API**
-  - **Wikipedia OpenSearch API**
-- **Testing:** Swift Testing (`import Testing`)
-
-## Cómo usar este paquete
-
-### 1) Compilar y probar
+## Cómo usar el paquete
 
 Desde la raíz del repositorio:
 
@@ -102,49 +93,39 @@ swift build
 swift test
 ```
 
-### 2) Integrarlo en una app iOS (Xcode)
+## Integración en app iOS (Xcode)
 
-1. Crea una app iOS en Xcode (SwiftUI).
-2. En tu proyecto: `File > Add Package Dependencies... > Add Local...`.
+1. Crea tu app iOS en Xcode.
+2. Ve a `File > Add Package Dependencies... > Add Local...`.
 3. Selecciona la carpeta de este repositorio.
-4. Agrega el producto `AI---AT---Swift-PRELIMINAR-` al target de la app.
-5. Importa el módulo `AI___AT___Swift_PRELIMINAR_` en tu app.
+4. Agrega el producto `AI---AT---Swift-PRELIMINAR-` a tu target.
+5. Importa el módulo `AI___AT___Swift_PRELIMINAR_`.
 
-## App icon (implementado desde UIDesignConcept)
+## Recursos de diseño
 
-- Fuente original: `UIDesignConcept/hamlet.jpg`
-- Set listo para Xcode: `UIDesignConcept/AppIcon.appiconset`
+### App icon
 
-Para aplicarlo en tu app iOS:
-1. Abre `Assets.xcassets` de tu proyecto de app.
-2. Reemplaza el contenido de `AppIcon` con los archivos de `UIDesignConcept/AppIcon.appiconset`.
-3. Asegúrate de conservar `Contents.json` del set.
+- Imagen base: `UIDesignConcept/hamlet.jpg`
+- Set listo: `UIDesignConcept/AppIcon.appiconset`
 
-También puedes instalarlo automáticamente con script:
+Script opcional de instalación:
 
 ```bash
 ./Scripts/install_app_icon.sh /ruta/a/TuApp/Assets.xcassets
 ```
 
-Para que se vea en simulador:
-- El target de la app debe tener `AppIcon` como nombre de app icon.
-- Si no se actualiza, elimina la app del simulador y vuelve a ejecutar.
+### UI Concept Art
 
-## UI Concept Art (paletas aplicadas)
+La carpeta `UIDesignConceptArt/` conserva referencias visuales para:
 
-La carpeta `UIDesignConceptArt/` se usa como referencia visual para aplicar paletas de color por pantalla:
-- Menú principal / chat
-- Pantalla de actividad / Pomodoro
-- Agenda
-- Entrenador
-- Ajustes
-
-Nota:
-- El arte conceptual se conserva como referencia de diseño.
-- La UI del paquete aplica tema por color (no renderiza banners de imagen en runtime).
+- menú principal / chat
+- actividad / Pomodoro
+- agenda
+- entrenador
+- ajustes
 
 ## Seguridad
 
 - Nunca hardcodees claves reales en commits.
-- Usa `GROQ_API_KEY` para entornos de desarrollo/CI.
-- `LocalSecrets.swift` debe mantenerse con valor vacío en el código compartido.
+- Usa `GROQ_API_KEY` en desarrollo/CI.
+- Mantén `LocalSecrets.swift` con valores vacíos en código compartido.
