@@ -267,6 +267,10 @@ private extension View {
 }
 
 public struct HomeView: View {
+    // Keep a short intentional delay so the branded startup screen is visible.
+    private static let launchDuration: Duration = .seconds(1.8)
+    private static let launchFadeDuration: TimeInterval = 0.2
+    @State private var isShowingLaunchScreen = true
     @State private var todayActivities: [Activity] = []
     @State private var tomorrowActivities: [Activity] = []
     @State private var streakState = StreakState()
@@ -455,9 +459,31 @@ public struct HomeView: View {
                 }
             }
         }
+        .overlay {
+            if isShowingLaunchScreen {
+                AppLaunchLoadingView()
+                    .transition(.opacity)
+            }
+        }
         .preferredColorScheme(preferredColorScheme)
         .appTypography()
         .environment(\.dynamicTypeSize, preferredDynamicTypeSize)
+        .task {
+            do {
+                try await Task.sleep(for: Self.launchDuration)
+            } catch is CancellationError {
+                return
+            } catch {
+                assertionFailure(
+                    "Unexpected non-cancellation error while waiting for launch delay. This indicates a development-time issue: \(error)"
+                )
+                return
+            }
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: Self.launchFadeDuration)) {
+                isShowingLaunchScreen = false
+            }
+        }
     }
 
     private var menuAgendaTable: some View {
@@ -728,6 +754,79 @@ public struct HomeView: View {
         case .inProgress:
             return ScreenPalette.accentInfo
         }
+    }
+}
+
+private struct AppLaunchLoadingView: View {
+    private static let hamletImageName = "Hamlet"
+    private static let hamletImageExtension = "png"
+    private static let fallbackIconName = "photo"
+    private static let imageSize: CGFloat = 220
+    private let launchImage: Image
+
+    init() {
+        self.launchImage = Self.loadHamletImage() ?? Image(systemName: Self.fallbackIconName)
+    }
+
+    var body: some View {
+        ZStack {
+            ScreenPalette.homeBackground.ignoresSafeArea()
+            launchImage
+                .resizable()
+                .scaledToFit()
+                .frame(width: Self.imageSize, height: Self.imageSize)
+                .accessibilityHidden(true)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+            localizedText(
+                es: "Cargando aplicación, espere un momento",
+                en: "Loading application, please wait"
+            )
+        )
+    }
+
+    private static func loadHamletImage() -> Image? {
+        let resourceURL = Bundle.module.url(
+            forResource: Self.hamletImageName,
+            withExtension: Self.hamletImageExtension
+        )
+
+        #if canImport(UIKit)
+        if
+            let resourceURL,
+            let imageData = try? Data(contentsOf: resourceURL),
+            let image = UIImage(data: imageData)
+        {
+            return Image(uiImage: image)
+        }
+        if let image = UIImage(
+            named: Self.hamletImageName,
+            in: .module,
+            compatibleWith: nil
+        ) {
+            return Image(uiImage: image)
+        }
+        if let image = UIImage(named: Self.hamletImageName) {
+            return Image(uiImage: image)
+        }
+        #elseif canImport(AppKit)
+        if
+            let resourceURL,
+            let imageData = try? Data(contentsOf: resourceURL),
+            let image = NSImage(data: imageData)
+        {
+            return Image(nsImage: image)
+        }
+        if let image = Bundle.module.image(forResource: NSImage.Name(Self.hamletImageName)) {
+            return Image(nsImage: image)
+        }
+        if let image = NSImage(named: NSImage.Name(Self.hamletImageName)) {
+            return Image(nsImage: image)
+        }
+        #endif
+
+        return nil
     }
 }
 
