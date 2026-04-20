@@ -754,7 +754,12 @@ private struct AppLaunchLoadingView: View {
                 .accessibilityHidden(true)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Pantalla de carga con hámster")
+        .accessibilityLabel(
+            localizedText(
+                es: "Pantalla de carga con hámster",
+                en: "Loading screen with hamster"
+            )
+        )
     }
 }
 
