@@ -759,6 +759,11 @@ public struct HomeView: View {
 private struct AppLaunchLoadingView: View {
     private static let hamletImageName = "Hamlet"
     private static let hamletImageExtension = "png"
+    private let launchImage: Image
+
+    init() {
+        self.launchImage = Self.loadHamletImage() ?? Image(systemName: "photo")
+    }
 
     var body: some View {
         ZStack {
@@ -778,14 +783,7 @@ private struct AppLaunchLoadingView: View {
         )
     }
 
-    private var launchImage: Image {
-        if let hamletImage = loadHamletImage() {
-            return hamletImage
-        }
-        return Image(systemName: "photo")
-    }
-
-    private func loadHamletImage() -> Image? {
+    private static func loadHamletImage() -> Image? {
         let resourceURL = Bundle.module.url(
             forResource: Self.hamletImageName,
             withExtension: Self.hamletImageExtension
@@ -804,15 +802,9 @@ private struct AppLaunchLoadingView: View {
             in: .module,
             compatibleWith: nil
         ) {
-            #if DEBUG
-            print("AppLaunchLoadingView: loaded Hamlet image via module named fallback.")
-            #endif
             return Image(uiImage: image)
         }
         if let image = UIImage(named: Self.hamletImageName) {
-            #if DEBUG
-            print("AppLaunchLoadingView: loaded Hamlet image via main bundle fallback.")
-            #endif
             return Image(uiImage: image)
         }
         #elseif canImport(AppKit)
@@ -824,15 +816,9 @@ private struct AppLaunchLoadingView: View {
             return Image(nsImage: image)
         }
         if let image = Bundle.module.image(forResource: NSImage.Name(Self.hamletImageName)) {
-            #if DEBUG
-            print("AppLaunchLoadingView: loaded Hamlet image via module named fallback.")
-            #endif
             return Image(nsImage: image)
         }
         if let image = NSImage(named: NSImage.Name(Self.hamletImageName)) {
-            #if DEBUG
-            print("AppLaunchLoadingView: loaded Hamlet image via app named fallback.")
-            #endif
             return Image(nsImage: image)
         }
         #endif
