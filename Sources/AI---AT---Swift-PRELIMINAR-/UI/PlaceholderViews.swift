@@ -790,7 +790,14 @@ private struct AppLaunchLoadingView: View {
         )
 
         #if canImport(UIKit)
-        if let resourceURL, let image = UIImage(contentsOfFile: resourceURL.path()) {
+        if let resourceURL, let image = UIImage(contentsOfFile: resourceURL.path) {
+            return Image(uiImage: image)
+        }
+        if let image = UIImage(
+            named: Self.hamletImageName,
+            in: .module,
+            compatibleWith: nil
+        ) {
             return Image(uiImage: image)
         }
         if let image = UIImage(named: Self.hamletImageName) {
@@ -800,7 +807,10 @@ private struct AppLaunchLoadingView: View {
         if let resourceURL, let image = NSImage(contentsOf: resourceURL) {
             return Image(nsImage: image)
         }
-        if let image = NSImage(named: Self.hamletImageName) {
+        if let image = Bundle.module.image(forResource: NSImage.Name(Self.hamletImageName)) {
+            return Image(nsImage: image)
+        }
+        if let image = NSImage(named: NSImage.Name(Self.hamletImageName)) {
             return Image(nsImage: image)
         }
         #endif
