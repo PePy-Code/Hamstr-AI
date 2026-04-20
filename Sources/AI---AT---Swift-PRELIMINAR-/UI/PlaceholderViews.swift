@@ -267,6 +267,7 @@ private extension View {
 }
 
 public struct HomeView: View {
+    @State private var showLaunchLoadingScreen = true
     @State private var todayActivities: [Activity] = []
     @State private var tomorrowActivities: [Activity] = []
     @State private var streakState = StreakState()
@@ -455,9 +456,22 @@ public struct HomeView: View {
                 }
             }
         }
+        .overlay {
+            if showLaunchLoadingScreen {
+                AppLaunchLoadingView()
+                    .transition(.opacity)
+            }
+        }
         .preferredColorScheme(preferredColorScheme)
         .appTypography()
         .environment(\.dynamicTypeSize, preferredDynamicTypeSize)
+        .task(id: showLaunchLoadingScreen) {
+            guard showLaunchLoadingScreen else { return }
+            try? await Task.sleep(for: .seconds(1))
+            withAnimation(.easeOut(duration: 0.2)) {
+                showLaunchLoadingScreen = false
+            }
+        }
     }
 
     private var menuAgendaTable: some View {
@@ -727,6 +741,17 @@ public struct HomeView: View {
             return ScreenPalette.accentDanger
         case .inProgress:
             return ScreenPalette.accentInfo
+        }
+    }
+}
+
+private struct AppLaunchLoadingView: View {
+    var body: some View {
+        ZStack {
+            ScreenPalette.homeBackground.ignoresSafeArea()
+            Text("🐹")
+                .font(.system(size: 120))
+                .accessibilityLabel("Pantalla de carga")
         }
     }
 }
