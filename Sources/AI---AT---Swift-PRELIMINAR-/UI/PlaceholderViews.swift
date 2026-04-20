@@ -834,7 +834,8 @@ private struct HamletMiniIcon: View {
     private static let secondaryImageName = "hamletmini"
     private static let fallbackImageName = "Hamlet"
     private static let imageExtension = "png"
-    private static let fallbackSystemIconName = "photo"
+    private static let fallbackSystemIconName = "face.smiling"
+    // Rounded corners tuned to keep a soft avatar look without visibly cutting the mascot face.
     private static let cornerRadiusRatio: CGFloat = 0.28
     let size: CGFloat
     private let iconImage: Image
