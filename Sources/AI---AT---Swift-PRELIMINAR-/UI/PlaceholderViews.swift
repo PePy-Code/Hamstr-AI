@@ -467,7 +467,7 @@ public struct HomeView: View {
         .environment(\.dynamicTypeSize, preferredDynamicTypeSize)
         .task {
             guard showLaunchLoadingScreen else { return }
-            guard (try? await Task.sleep(for: .seconds(1))) != nil else { return }
+            try? await Task.sleep(for: .seconds(1))
             withAnimation(.easeOut(duration: 0.2)) {
                 showLaunchLoadingScreen = false
             }
