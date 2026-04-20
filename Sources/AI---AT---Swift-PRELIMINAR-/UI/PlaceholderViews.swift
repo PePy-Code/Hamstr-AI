@@ -467,11 +467,7 @@ public struct HomeView: View {
         .environment(\.dynamicTypeSize, preferredDynamicTypeSize)
         .task {
             guard showLaunchLoadingScreen else { return }
-            do {
-                try await Task.sleep(for: .seconds(1))
-            } catch {
-                return
-            }
+            guard (try? await Task.sleep(for: .seconds(1))) != nil else { return }
             withAnimation(.easeOut(duration: 0.2)) {
                 showLaunchLoadingScreen = false
             }
@@ -760,7 +756,7 @@ private struct AppLaunchLoadingView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
             localizedText(
-                es: "Cargando aplicación, espera un momento",
+                es: "Cargando aplicación, espere un momento",
                 en: "Application loading, please wait"
             )
         )
