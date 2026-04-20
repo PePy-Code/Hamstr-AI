@@ -751,8 +751,10 @@ private struct AppLaunchLoadingView: View {
             ScreenPalette.homeBackground.ignoresSafeArea()
             Text("🐹")
                 .font(.system(size: 120))
-                .accessibilityLabel("Pantalla de carga con hámster")
+                .accessibilityHidden(true)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Pantalla de carga con hámster")
     }
 }
 
