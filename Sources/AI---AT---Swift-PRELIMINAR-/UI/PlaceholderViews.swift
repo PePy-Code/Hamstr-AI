@@ -268,7 +268,7 @@ private extension View {
 
 public struct HomeView: View {
     // Slightly longer than the original 1s to make the branded startup feel intentional.
-    private static let launchLoadingDurationSeconds = 1.8
+    private static let launchDuration: Duration = .seconds(1.8)
     @State private var showLaunchLoadingScreen = true
     @State private var todayActivities: [Activity] = []
     @State private var tomorrowActivities: [Activity] = []
@@ -469,7 +469,7 @@ public struct HomeView: View {
         .environment(\.dynamicTypeSize, preferredDynamicTypeSize)
         .task {
             do {
-                try await Task.sleep(for: .seconds(Self.launchLoadingDurationSeconds))
+                try await Task.sleep(for: Self.launchDuration)
             } catch {
                 // Cancellation is expected if the view disappears before the delay completes.
                 return
