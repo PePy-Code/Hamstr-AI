@@ -468,15 +468,8 @@ public struct HomeView: View {
         .appTypography()
         .environment(\.dynamicTypeSize, preferredDynamicTypeSize)
         .task {
-            do {
-                try await Task.sleep(for: Self.launchDuration)
-            } catch is CancellationError {
-                // Cancellation is expected if the view disappears before the delay completes.
-                return
-            } catch {
-                assertionFailure("Unexpected launch loading delay error: \(error)")
-                return
-            }
+            try? await Task.sleep(for: Self.launchDuration)
+            guard !Task.isCancelled else { return }
             withAnimation(.easeOut(duration: 0.2)) {
                 isShowingLaunchScreen = false
             }
