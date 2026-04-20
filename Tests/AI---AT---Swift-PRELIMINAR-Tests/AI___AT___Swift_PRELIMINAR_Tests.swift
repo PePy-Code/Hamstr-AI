@@ -620,7 +620,7 @@ func aiConversationServiceReturnsFriendlyGreetingWhenNoStartSources() async thro
     let material = try await service.supportMaterial(for: "Repaso de química", type: .study)
 
     #expect(material.count == 1)
-    #expect(material[0].contains("Roedor"))
+    #expect(material[0].contains("Hamlet Hamster"))
 }
 
 @Test("AIConversationService por defecto prioriza agente externo open source")
@@ -674,8 +674,8 @@ func aiConversationServiceGeneratesMascotMessageFromOpenSourceProvider() async t
     let service = AIConversationService(
         openSourceKnowledge: MockOpenSourceKnowledge(
             answerProvider: { query in
-                // El prompt usa "Roedor" como nombre de la mascota
-                if query.contains("Roedor") {
+                // El prompt usa "Hamlet Hamster" como nombre de la mascota
+                if query.contains("Hamlet Hamster") {
                     return "¡Ánimo! Ya casi es hora de Entregar ensayo, tú puedes. 🎯"
                 }
                 return nil

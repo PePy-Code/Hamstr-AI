@@ -168,7 +168,7 @@ private extension AIConversationService {
             "soñador pero concreto"
         ]
 
-        /// Temas de bienestar que Roedor puede traer a colación cuando no hay urgencia inmediata.
+        /// Temas de bienestar que Hamlet Hamster puede traer a colación cuando no hay urgencia inmediata.
         /// Diseñados para estudiantes +15 años que pueden tener dificultades de concentración o TDAH.
         static let wellbeingAngles: [String] = [
             "técnica de enfoque para TDAH: bloques de 10-15 min con pausa activa",
@@ -249,7 +249,7 @@ private extension AIConversationService {
     }
 
     func friendlyGreeting() -> String {
-        "Soy Roedor 🐭 No encontré fuentes directas ahora mismo, pero puedo ayudarte a enfocar tu estudio paso a paso."
+        "Soy Hamlet Hamster 🐹 No encontré fuentes directas ahora mismo, pero puedo ayudarte a enfocar tu estudio paso a paso."
     }
 
     func refusalWithSources(_ sources: [String]) -> String {
@@ -258,7 +258,7 @@ private extension AIConversationService {
     }
 
     func refusalWithoutSources(context: String) -> String {
-        "Mejor que lo trabajes tú mismo 🐭\n\nSi quieres, armo un plan de estudio sobre \"\(context)\" y te comparto fuentes directas."
+        "Mejor que lo trabajes tú mismo 🐹\n\nSi quieres, armo un plan de estudio sobre \"\(context)\" y te comparto fuentes directas."
     }
 
     func fallbackChatReply(title: String, context: String) -> String {
@@ -382,7 +382,7 @@ private extension AIConversationService {
             .filter { $0.status != .completed && $0.status != .failed }.count
 
         return """
-        Eres Roedor 🐭, una pequeña mascota sabia y entrañable: cercana, algo filósofa, con humor y mucho cariño.
+        Eres Hamlet Hamster 🐹, un hamster molesto pero buena onda: travieso, un poco dramático, siempre amigable y siempre dispuesto a ayudar.
         Tu misión es acompañar al estudiante (15+ años, puede tener TDAH o dificultades de concentración) con un mensaje fresco y genuino cada vez que abre la app.
 
         Hoy tu humor es: \(mood).
@@ -398,11 +398,13 @@ private extension AIConversationService {
         - Escribe UN solo mensaje en español, máximo \(MascotMessageConfig.maxMessageLength) caracteres.
         - Sin markdown, sin links, sin listas.
         - Varía el inicio, el tono y los emojis en cada respuesta: nunca empieces igual dos veces.
+        - Debe sentirse la personalidad de Hamlet Hamster: molestia ligera + ternura + apoyo real.
+        - Puedes incluir una mini queja bromista (máximo una), pero jamás insultes ni hagas sentir mal al estudiante.
         - Si hay actividad próxima, prioriza ese aviso con cariño y un poco de urgencia.
         - Si la racha es alta (7+), celébralo con entusiasmo.
         - Si no hay nada urgente, elige entre: dar el tip de bienestar del día, una reflexión motivacional, un consejo de concentración o una metáfora ingeniosa.
         - El bienestar no es solo estudiar: también vale recordar respirar, moverse, hidratarse o descansar la mente.
-        - Puedes hablar de Roedor en tercera persona ocasionalmente, o en primera.
+        - Puedes hablar de Hamlet Hamster en tercera persona ocasionalmente, o en primera.
         - Lo único prohibido: repetir la misma estructura de mensaje dos veces seguidas.
         """
     }
@@ -428,7 +430,7 @@ private extension AIConversationService {
             let minutes = max(Int(next.scheduledAt.timeIntervalSince(now) / 60), 0)
             if minutes <= MascotMessageConfig.urgentActivityThresholdMinutes {
                 let urgent = [
-                    "👀 Oye, en \(minutes) min toca \"\(next.title)\"... ¡Roedor confía en ti!",
+                    "👀 Oye, en \(minutes) min toca \"\(next.title)\"... ¡Hamlet Hamster confía en ti!",
                     "⏰ \(minutes) minutos para \"\(next.title)\". Respira, enfócate y tú puedes.",
                     "🎯 Misión en \(minutes) min: \"\(next.title)\". ¡Tú ya sabes lo que hay que hacer!",
                     "🔔 Psst... \"\(next.title)\" llama en \(minutes) min. ¡Que no te agarre desprevenido!"
@@ -437,7 +439,7 @@ private extension AIConversationService {
             }
             let soon = [
                 "🕒 Antes de que te relajes demasiado: \"\(next.title)\" está en camino. Prepara el terreno.",
-                "📌 Próxima parada: \"\(next.title)\". Roedor ya tiene el cronómetro listo.",
+                "📌 Próxima parada: \"\(next.title)\". Hamlet Hamster ya tiene el cronómetro listo.",
                 "🌱 Un poco de preparación ahora para \"\(next.title)\" te ahorra estrés después.",
                 "🗂️ \"\(next.title)\" se acerca. Échale un vistazo rápido y llegas con ventaja."
             ]
@@ -446,10 +448,10 @@ private extension AIConversationService {
 
         if streakDays >= 7 {
             let celebration = [
-                "🔥 \(streakDays) días seguidos, ¡eso no es casualidad! Roedor te mira con orgullo.",
-                "🏆 \(streakDays) días de racha. Los grillos no aplaudimos, pero si pudiéramos...",
+                "🔥 \(streakDays) días seguidos, ¡eso no es casualidad! Hamlet Hamster te mira con orgullo.",
+                "🏆 \(streakDays) días de racha. Los hámsteres no aplaudimos, pero si pudiéramos...",
                 "⚡ \(streakDays) días y contando. ¡Deja que el Trainer añada otro escalón hoy!",
-                "🌟 \(streakDays) días. Roedor dice: la constancia construye castillos de conocimiento."
+                "🌟 \(streakDays) días. Hamlet Hamster dice: la constancia construye castillos de conocimiento."
             ]
             return celebration.randomElement()!
         }
@@ -459,7 +461,7 @@ private extension AIConversationService {
                 "🌿 Día sin agenda, mente libre. ¿Y si le das al Trainer solo 5 minutos?",
                 "🎲 Sin compromisos hoy. Es el momento perfecto para explorar el Trainer sin prisa.",
                 "💭 Agenda en blanco... ¿Qué tal un round de trivia para calentar neuronas?",
-                "🐛 Roedor dice: los días tranquilos son los mejores para aprender algo nuevo."
+                "🐛 Hamlet Hamster dice: los días tranquilos son los mejores para aprender algo nuevo."
             ]
             return free.randomElement()!
         }
@@ -467,14 +469,14 @@ private extension AIConversationService {
         let general = [
             "💡 Un paso pequeño hoy vale más que un salto perfecto mañana. ¡Dale!",
             "🧠 El Trainer espera. 5 minutos bastan para despertar al cerebro dormido.",
-            "🌀 La técnica Pomodoro: 25 min de enfoque, 5 de descanso. Roedor lo aprueba.",
+            "🌀 La técnica Pomodoro: 25 min de enfoque, 5 de descanso. Hamlet Hamster lo aprueba.",
             "🎵 Estudiar tiene su ritmo. Encuentra el tuyo y el tiempo vuela solo.",
             "🔑 ¿Sabes qué abre todas las puertas? La constancia. Y tú ya la tienes.",
             "🌈 Cada actividad que cierras es una ficha más en tu tablero. ¡Mueve ficha!",
-            "🦗 Roedor estuvo leyendo: 3 repasos espaciados fijan más que 1 hora seguida.",
-            "🎯 Foco + pausa + foco: la receta secreta de Roedor para el día de hoy.",
+            "🦗 Hamlet Hamster estuvo leyendo: 3 repasos espaciados fijan más que 1 hora seguida.",
+            "🎯 Foco + pausa + foco: la receta secreta de Hamlet Hamster para el día de hoy.",
             "📵 Modo avión 20 min y el teléfono deja de robar tu atención. Pruébalo.",
-            "💧 Hidratado y con dos respiraciones profundas antes de empezar. Roedor lo jura.",
+            "💧 Hidratado y con dos respiraciones profundas antes de empezar. Hamlet Hamster lo jura.",
             "🏃 5 min de movimiento antes de estudiar activan el cerebro mejor que el café.",
             "🎯 Solo el primer paso importa ahora: ábrete a la primera tarea y el resto llega solo.",
             "🔕 Notificaciones en silencio, puerta cerrada, un solo objetivo. Así se entra en zona.",

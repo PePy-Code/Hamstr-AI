@@ -119,10 +119,10 @@ public struct HomeView: View {
                         openPersonalChatbot = true
                     } label: {
                         HStack(alignment: .top, spacing: 10) {
-                            Text("🐭")
+                            Text("🐹")
                                 .font(.largeTitle)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Roedor")
+                                Text("Hamlet Hamster")
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(.secondary)
                                 Text(displayedPetSupportMessage)
@@ -502,7 +502,7 @@ public struct HomeView: View {
         if todayActivities.isEmpty {
             return "Sin actividades hoy. Una pequeña tarea marca la diferencia."
         }
-        return "Un bloque a la vez. Cada paso suma 🐭"
+        return "Un bloque a la vez. Cada paso suma 🐹"
     }
 
     private func statusColor(for status: ActivityStatus) -> Color {
@@ -538,7 +538,7 @@ private struct PersonalChatbotView: View {
             chatComposer
         }
         .padding()
-        .navigationTitle("Roedor 🐭")
+        .navigationTitle("Hamlet Hamster 🐹")
         .task {
             guard !hasLoaded else { return }
             hasLoaded = true
@@ -551,7 +551,7 @@ private struct PersonalChatbotView: View {
 
     private var chatSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Roedor 🐭")
+            Text("Hamlet Hamster 🐹")
                 .font(.headline)
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 8) {
@@ -575,7 +575,7 @@ private struct PersonalChatbotView: View {
     private var chatComposer: some View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
-                TextField("Escribe a Roedor...", text: $userInput, axis: .vertical)
+                TextField("Escribe a Hamlet Hamster...", text: $userInput, axis: .vertical)
                     .textFieldStyle(.roundedBorder)
 
                 Button("Enviar") {
@@ -584,7 +584,7 @@ private struct PersonalChatbotView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(userInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
-            Text("Pídele a Roedor consejos, ayuda para organizarte o para recordar actividades.")
+            Text("Pídele a Hamlet Hamster consejos, ayuda para organizarte o para recordar actividades.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -651,7 +651,7 @@ private struct PersonalChatbotView: View {
         )) ?? ""
         let cleaned = modelReply.trimmingCharacters(in: .whitespacesAndNewlines)
         if cleaned.isEmpty {
-            return "Cuéntame qué necesitas organizar hoy 🐭"
+            return "Cuéntame qué necesitas organizar hoy 🐹"
         }
         return cleaned
     }
@@ -683,9 +683,9 @@ private struct PersonalChatbotView: View {
             ? "Llevas una racha de \(streakDays) \(streakDayWord)."
             : "Aún no tienes racha activa."
         if todayActivities.isEmpty && tomorrowActivities.isEmpty {
-            return "Hola, soy Roedor 🐭\n\n\(streakText) No tienes actividades programadas.\n\nSi quieres, cuéntame en qué quieres avanzar hoy."
+            return "Hola, soy Hamlet Hamster 🐹\n\n\(streakText) No tienes actividades programadas.\n\nSi quieres, cuéntame en qué quieres avanzar hoy."
         }
-        return "Hola, soy Roedor 🐭\n\nHoy tienes \(todayPending) \(activityWord) pendientes y mañana hay \(tomorrowCount) más. \(streakText)\n\n¿En qué te ayudo?"
+        return "Hola, soy Hamlet Hamster 🐹\n\nHoy tienes \(todayPending) \(activityWord) pendientes y mañana hay \(tomorrowCount) más. \(streakText)\n\n¿En qué te ayudo?"
     }
 
     private func pluralizedWord(for count: Int, singular: String, plural: String) -> String {
@@ -840,7 +840,7 @@ private struct ActivityLaunchPlaceholderView: View {
                 )
             case .mentalTrainingPrompt:
                 return Alert(
-                    title: Text("🐭 Entrenamiento mental"),
+                    title: Text("🐹 Entrenamiento mental"),
                     message: Text("¿Te gustaría hacer un entrenamiento mental?"),
                     primaryButton: .default(Text("Sí")) {
                         if shouldShowStreakPopup {
@@ -965,7 +965,7 @@ private struct ActivityLaunchPlaceholderView: View {
 
     private var chatSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Roedor 🐭")
+            Text("Hamlet Hamster 🐹")
                 .font(.headline)
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 8) {
@@ -1003,7 +1003,7 @@ private struct ActivityLaunchPlaceholderView: View {
                 .buttonStyle(.bordered)
                 #endif
 
-                TextField("Escribe a Roedor...", text: $userInput, axis: .vertical)
+                TextField("Escribe a Hamlet Hamster...", text: $userInput, axis: .vertical)
                     .textFieldStyle(.roundedBorder)
 
                 Button("Enviar") {
@@ -1012,7 +1012,7 @@ private struct ActivityLaunchPlaceholderView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(userInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
-            Text("Roedor responde preguntas, explica conceptos y sugiere fuentes abiertas.")
+            Text("Hamlet Hamster responde preguntas, explica conceptos y sugiere fuentes abiertas.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -1085,7 +1085,7 @@ private struct ActivityLaunchPlaceholderView: View {
         )) ?? ""
         let cleaned = modelReply.trimmingCharacters(in: .whitespacesAndNewlines)
         if cleaned.isEmpty {
-            return "Dame más contexto y te respondo de forma concreta 🐭"
+            return "Dame más contexto y te respondo de forma concreta 🐹"
         }
         return cleaned
     }
