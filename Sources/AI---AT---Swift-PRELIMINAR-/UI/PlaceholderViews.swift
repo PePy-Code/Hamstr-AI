@@ -269,7 +269,7 @@ private extension View {
 public struct HomeView: View {
     // Slightly longer than the original 1s to make the branded startup feel intentional.
     private static let launchDuration: Duration = .seconds(1.8)
-    @State private var showLaunchLoadingScreen = true
+    @State private var isShowingLaunchScreen = true
     @State private var todayActivities: [Activity] = []
     @State private var tomorrowActivities: [Activity] = []
     @State private var streakState = StreakState()
@@ -459,7 +459,7 @@ public struct HomeView: View {
             }
         }
         .overlay {
-            if showLaunchLoadingScreen {
+            if isShowingLaunchScreen {
                 AppLaunchLoadingView()
                     .transition(.opacity)
             }
@@ -470,12 +470,15 @@ public struct HomeView: View {
         .task {
             do {
                 try await Task.sleep(for: Self.launchDuration)
-            } catch {
+            } catch is CancellationError {
                 // Cancellation is expected if the view disappears before the delay completes.
+                return
+            } catch {
+                assertionFailure("Unexpected launch loading delay error: \(error)")
                 return
             }
             withAnimation(.easeOut(duration: 0.2)) {
-                showLaunchLoadingScreen = false
+                isShowingLaunchScreen = false
             }
         }
     }
