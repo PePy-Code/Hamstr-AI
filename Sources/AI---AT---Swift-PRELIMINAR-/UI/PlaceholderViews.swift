@@ -467,7 +467,7 @@ public struct HomeView: View {
         .environment(\.dynamicTypeSize, preferredDynamicTypeSize)
         .task {
             do {
-                try await Task.sleep(for: .seconds(1))
+                try await Task.sleep(for: .seconds(1.8))
             } catch {
                 return
             }
@@ -753,8 +753,10 @@ private struct AppLaunchLoadingView: View {
     var body: some View {
         ZStack {
             ScreenPalette.homeBackground.ignoresSafeArea()
-            Text("🐹")
-                .font(.system(size: 120))
+            Image("Hamlet", bundle: .module)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 220, height: 220)
                 .accessibilityHidden(true)
         }
         .accessibilityElement(children: .ignore)
