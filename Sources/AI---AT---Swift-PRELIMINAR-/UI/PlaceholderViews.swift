@@ -83,6 +83,15 @@ private extension Color {
 }
 
 private enum ScreenPalette {
+    private enum PaletteVariant {
+        case frappe
+        case latte
+    }
+
+    private static var variant: PaletteVariant {
+        AppPreferences.visualTheme == .light ? .latte : .frappe
+    }
+
     private static let frappeRosewater = Color(hex: 0xF2D5CF)
     private static let frappePink = Color(hex: 0xF4B8E4)
     private static let frappeMauve = Color(hex: 0xCA9EE6)
@@ -101,6 +110,24 @@ private enum ScreenPalette {
     private static let frappeBase = Color(hex: 0x303446)
     private static let frappeMantle = Color(hex: 0x292C3C)
     private static let frappeCrust = Color(hex: 0x232634)
+    private static let latteRosewater = Color(hex: 0xDC8A78)
+    private static let lattePink = Color(hex: 0xEA76CB)
+    private static let latteMauve = Color(hex: 0x8839EF)
+    private static let latteRed = Color(hex: 0xD20F39)
+    private static let lattePeach = Color(hex: 0xFE640B)
+    private static let latteYellow = Color(hex: 0xDF8E1D)
+    private static let latteGreen = Color(hex: 0x40A02B)
+    private static let latteTeal = Color(hex: 0x179299)
+    private static let latteSky = Color(hex: 0x04A5E5)
+    private static let latteBlue = Color(hex: 0x1E66F5)
+    private static let latteLavender = Color(hex: 0x7287FD)
+    private static let latteText = Color(hex: 0x4C4F69)
+    private static let latteSurface2 = Color(hex: 0xACB0BE)
+    private static let latteSurface1 = Color(hex: 0xBCC0CC)
+    private static let latteSurface0 = Color(hex: 0xCCD0DA)
+    private static let latteBase = Color(hex: 0xEFF1F5)
+    private static let latteMantle = Color(hex: 0xE6E9EF)
+    private static let latteCrust = Color(hex: 0xDCE0E8)
     private static let frappeBackground = LinearGradient(
         colors: [frappeCrust, frappeBase, frappeMauve.opacity(0.22)],
         startPoint: .topLeading,
@@ -136,49 +163,96 @@ private enum ScreenPalette {
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
-
-    static let homeBackground = frappeBackground
-    static let homeSurface = frappeSurface
-    static let homeStreakSurface = frappeWarmSurface
-    static let homeGoalSurface = frappeSoftSurface
-    static let homeMascotSurface = LinearGradient(
+    private static let latteBackground = LinearGradient(
+        colors: [latteCrust, latteBase, latteLavender.opacity(0.20)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    private static let latteSurface = LinearGradient(
+        colors: [latteBase.opacity(0.95), latteSurface0.opacity(0.70), latteLavender.opacity(0.20)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    private static let latteWarmSurface = LinearGradient(
+        colors: [lattePeach.opacity(0.25), latteRosewater.opacity(0.23)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    private static let latteSoftSurface = LinearGradient(
+        colors: [latteLavender.opacity(0.22), latteMauve.opacity(0.16)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    private static let latteAgendaSurface = LinearGradient(
+        colors: [latteSky.opacity(0.17), latteBlue.opacity(0.14), latteLavender.opacity(0.18)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    private static let latteTrainerBackground = LinearGradient(
+        colors: [latteMantle, latteBase, latteMauve.opacity(0.13)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    private static let latteTrainerSurface = LinearGradient(
+        colors: [latteLavender.opacity(0.20), latteBlue.opacity(0.12), lattePink.opacity(0.12)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    private static let frappeHomeMascotSurface = LinearGradient(
         colors: [frappeLavender.opacity(0.30), frappePink.opacity(0.20)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
-    static let homeAgendaSurface = frappeAgendaSurface
-    static let agendaFrameStroke = frappeSurface2.opacity(0.55)
-    static let homeBubbleAssistant = frappeLavender.opacity(0.24)
-    static let homeBubbleUser = frappeMauve.opacity(0.22)
-
-    static let activityBackground = homeBackground
-    static let activitySurface = homeSurface
-    static let pomodoroSurface = LinearGradient(
+    private static let latteHomeMascotSurface = LinearGradient(
+        colors: [latteLavender.opacity(0.20), lattePink.opacity(0.12)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    private static let frappePomodoroSurface = LinearGradient(
         colors: [frappeMantle, frappeSurface0],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
-    static let activityBubbleAssistant = frappeLavender.opacity(0.26)
-    static let activityBubbleUser = frappeMauve.opacity(0.24)
-    static let buttonPrimary = frappeLavender
-    static let buttonSecondary = frappeLavender
-    static let buttonTertiary = frappePink
+    private static let lattePomodoroSurface = LinearGradient(
+        colors: [latteMantle, latteSurface0],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
 
-    static let agendaBackground = frappeBackground
-    static let agendaSurface = frappeSurface
+    static var homeBackground: LinearGradient { variant == .latte ? latteBackground : frappeBackground }
+    static var homeSurface: LinearGradient { variant == .latte ? latteSurface : frappeSurface }
+    static var homeStreakSurface: LinearGradient { variant == .latte ? latteWarmSurface : frappeWarmSurface }
+    static var homeGoalSurface: LinearGradient { variant == .latte ? latteSoftSurface : frappeSoftSurface }
+    static var homeMascotSurface: LinearGradient { variant == .latte ? latteHomeMascotSurface : frappeHomeMascotSurface }
+    static var homeAgendaSurface: LinearGradient { variant == .latte ? latteAgendaSurface : frappeAgendaSurface }
+    static var agendaFrameStroke: Color { variant == .latte ? latteSurface2.opacity(0.65) : frappeSurface2.opacity(0.55) }
+    static var homeBubbleAssistant: Color { variant == .latte ? latteLavender.opacity(0.18) : frappeLavender.opacity(0.24) }
+    static var homeBubbleUser: Color { variant == .latte ? latteMauve.opacity(0.14) : frappeMauve.opacity(0.22) }
 
-    static let trainerBackground = frappeTrainerBackground
-    static let trainerSurface = frappeTrainerSurface
+    static var activityBackground: LinearGradient { homeBackground }
+    static var activitySurface: LinearGradient { homeSurface }
+    static var pomodoroSurface: LinearGradient { variant == .latte ? lattePomodoroSurface : frappePomodoroSurface }
+    static var activityBubbleAssistant: Color { variant == .latte ? latteLavender.opacity(0.18) : frappeLavender.opacity(0.26) }
+    static var activityBubbleUser: Color { variant == .latte ? latteMauve.opacity(0.14) : frappeMauve.opacity(0.24) }
+    static var buttonPrimary: Color { variant == .latte ? latteLavender : frappeLavender }
+    static var buttonSecondary: Color { variant == .latte ? latteBlue : frappeLavender }
+    static var buttonTertiary: Color { variant == .latte ? lattePink : frappePink }
 
-    static let settingsBackground = frappeBackground
+    static var agendaBackground: LinearGradient { homeBackground }
+    static var agendaSurface: LinearGradient { homeSurface }
 
-    static let accentInfo = frappeMauve
-    static let accentSuccess = frappeGreen
-    static let accentWarning = frappeYellow
-    static let accentDanger = frappeRed
-    static let accentFocus = frappeLavender
-    static let accentLink = frappeLavender
-    static let accentMuted = frappeSurface2.opacity(0.85)
+    static var trainerBackground: LinearGradient { variant == .latte ? latteTrainerBackground : frappeTrainerBackground }
+    static var trainerSurface: LinearGradient { variant == .latte ? latteTrainerSurface : frappeTrainerSurface }
+
+    static var settingsBackground: LinearGradient { homeBackground }
+
+    static var accentInfo: Color { variant == .latte ? latteBlue : frappeMauve }
+    static var accentSuccess: Color { variant == .latte ? latteGreen : frappeGreen }
+    static var accentWarning: Color { variant == .latte ? latteYellow : frappeYellow }
+    static var accentDanger: Color { variant == .latte ? latteRed : frappeRed }
+    static var accentFocus: Color { variant == .latte ? latteLavender : frappeLavender }
+    static var accentLink: Color { variant == .latte ? latteBlue : frappeLavender }
+    static var accentMuted: Color { variant == .latte ? latteText.opacity(0.70) : frappeSurface2.opacity(0.85) }
 }
 
 private enum AppTypography {
