@@ -85,34 +85,38 @@ private extension Color {
 private enum ScreenPalette {
     private static let neonMagenta = Color(hex: 0xFF00FF)
     private static let neonPurple = Color(hex: 0x7B2CFF)
-    private static let fixedScreenBackground = Color(hex: 0x7B2CFF)
     private static let mintGreen = Color(hex: 0x3DE5C3)
     private static let mexicanPink = Color(hex: 0xE4007C)
     private static let pumpkinOrange = Color(hex: 0xFF7518)
     private static let pastelPink = Color(hex: 0xF8BBD9)
+    private static let neonBackground = LinearGradient(
+        colors: [neonMagenta, neonPurple],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
     private static let neonSurface = LinearGradient(
         colors: [neonMagenta.opacity(0.30), neonPurple.opacity(0.30)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
 
-    static let homeBackground = fixedScreenBackground
+    static let homeBackground = neonBackground
     static let homeSurface = neonSurface
     static let homeBubbleAssistant = pumpkinOrange.opacity(0.24)
     static let homeBubbleUser = mexicanPink.opacity(0.20)
 
-    static let activityBackground = fixedScreenBackground
+    static let activityBackground = neonBackground
     static let activitySurface = neonSurface
     static let activityBubbleAssistant = mintGreen.opacity(0.30)
     static let activityBubbleUser = mexicanPink.opacity(0.24)
 
-    static let agendaBackground = fixedScreenBackground
+    static let agendaBackground = neonBackground
     static let agendaSurface = neonSurface
 
-    static let trainerBackground = fixedScreenBackground
+    static let trainerBackground = neonBackground
     static let trainerSurface = neonSurface
 
-    static let settingsBackground = fixedScreenBackground
+    static let settingsBackground = neonBackground
 }
 
 public struct HomeView: View {
