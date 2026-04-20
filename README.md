@@ -1,19 +1,32 @@
 # Hamstr AI 🐹
-
+<div align="center">
+<img width="350" height="350" alt="hamlet" src="https://github.com/user-attachments/assets/db7bf850-5d55-405d-9cdf-e0af7fda1f9a" /> 
+  
+</div>
 Un entrenador académico en Swift pensado para estudiantes con problemas de atención y TDAH.
 
 La idea del proyecto es ayudarte a **estudiar con estructura**, mantener la motivación y recibir apoyo sin caer en respuestas automáticas que te resuelvan todo.
+
+Es la solucion ideal para aquello sestudiantes que necesitan estructura y concentracion para sus actividades diarias.
+
+## Screenshots
+
+<div align="center" style="display: flex; justify-content: center; gap: 10px; flex-wrap: nowrap;">
+  <img src="https://github.com/user-attachments/assets/a7fe7919-5119-4477-accb-f60bd3090aed" width="220"/>
+  <img src="https://github.com/user-attachments/assets/aedec5bd-f952-42da-a1a3-ac3cb2ad02e5" width="220"/>
+  <img src="https://github.com/user-attachments/assets/b036a26a-9da1-4efe-bcd2-a55032377567" width="220"/>
+</div>
 
 ## ¿Qué incluye?
 
 Este repositorio contiene una librería en **Swift Package Manager (SPM)** con la lógica principal de la app:
 
-- agenda académica (crear, editar, completar actividades)
-- sesiones tipo Pomodoro con apoyo contextual
-- chat de apoyo con guardrails
-- entrenador mental tipo trivia
-- sistema de racha (streak)
-- planificación de notificaciones
+- Agenda académica (crear, editar, completar actividades)
+- Sesiones tipo Pomodoro con apoyo contextual
+- Chat de apoyo con guardrails
+- Entrenador mental tipo trivia
+- Sistema de racha (streak)
+- Planificación de notificaciones
 
 > La interfaz final de iOS vive en un proyecto Xcode separado que consume este paquete.
 
