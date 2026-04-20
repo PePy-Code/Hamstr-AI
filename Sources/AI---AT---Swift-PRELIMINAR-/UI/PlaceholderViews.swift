@@ -267,6 +267,7 @@ private extension View {
 }
 
 public struct HomeView: View {
+    private static let launchLoadingDurationSeconds = 1.8
     @State private var showLaunchLoadingScreen = true
     @State private var todayActivities: [Activity] = []
     @State private var tomorrowActivities: [Activity] = []
@@ -467,8 +468,10 @@ public struct HomeView: View {
         .environment(\.dynamicTypeSize, preferredDynamicTypeSize)
         .task {
             do {
-                try await Task.sleep(for: .seconds(1.8))
+                try await Task.sleep(for: .seconds(Self.launchLoadingDurationSeconds))
             } catch {
+                if error is CancellationError { return }
+                assertionFailure("Unexpected launch loading delay error: \(error)")
                 return
             }
             guard showLaunchLoadingScreen else { return }
