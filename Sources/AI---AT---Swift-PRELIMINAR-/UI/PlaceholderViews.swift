@@ -83,82 +83,102 @@ private extension Color {
 }
 
 private enum ScreenPalette {
-    private static let neonMagenta = Color(hex: 0xFF00FF)
-    private static let neonPurple = Color(hex: 0x7B2CFF)
-    private static let mintGreen = Color(hex: 0x3DE5C3)
-    private static let mexicanPink = Color(hex: 0xE4007C)
-    private static let pumpkinOrange = Color(hex: 0xFF7518)
-    private static let pastelPink = Color(hex: 0xF8BBD9)
-    private static let neonBackground = LinearGradient(
-        colors: [neonMagenta, neonPurple],
+    private static let frappeRosewater = Color(hex: 0xF2D5CF)
+    private static let frappePink = Color(hex: 0xF4B8E4)
+    private static let frappeMauve = Color(hex: 0xCA9EE6)
+    private static let frappeRed = Color(hex: 0xE78284)
+    private static let frappePeach = Color(hex: 0xEF9F76)
+    private static let frappeYellow = Color(hex: 0xE5C890)
+    private static let frappeGreen = Color(hex: 0xA6D189)
+    private static let frappeTeal = Color(hex: 0x81C8BE)
+    private static let frappeSky = Color(hex: 0x99D1DB)
+    private static let frappeBlue = Color(hex: 0x8CAAEE)
+    private static let frappeLavender = Color(hex: 0xBABBF1)
+    private static let frappeText = Color(hex: 0xC6D0F5)
+    private static let frappeSurface2 = Color(hex: 0x626880)
+    private static let frappeSurface1 = Color(hex: 0x51576D)
+    private static let frappeSurface0 = Color(hex: 0x414559)
+    private static let frappeBase = Color(hex: 0x303446)
+    private static let frappeMantle = Color(hex: 0x292C3C)
+    private static let frappeCrust = Color(hex: 0x232634)
+    private static let frappeBackground = LinearGradient(
+        colors: [frappeCrust, frappeMantle, frappeBase],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
-    private static let neonSurface = LinearGradient(
-        colors: [neonMagenta.opacity(0.30), neonPurple.opacity(0.30)],
+    private static let frappeSurface = LinearGradient(
+        colors: [frappeSurface0.opacity(0.86), frappeSurface1.opacity(0.62)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
-    private static let vividWarmSurface = LinearGradient(
-        colors: [pumpkinOrange.opacity(0.36), mexicanPink.opacity(0.30)],
+    private static let frappeWarmSurface = LinearGradient(
+        colors: [frappePeach.opacity(0.34), frappeRosewater.opacity(0.22)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
-    private static let vividSoftSurface = LinearGradient(
-        colors: [pastelPink.opacity(0.40), mintGreen.opacity(0.32)],
+    private static let frappeSoftSurface = LinearGradient(
+        colors: [frappeMauve.opacity(0.30), frappeBlue.opacity(0.26)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
-    private static let vividAgendaSurface = LinearGradient(
-        colors: [mintGreen.opacity(0.28), pumpkinOrange.opacity(0.22)],
+    private static let frappeAgendaSurface = LinearGradient(
+        colors: [frappeTeal.opacity(0.24), frappeSky.opacity(0.20), frappeBlue.opacity(0.18)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
-    private static let vividTrainerBackground = LinearGradient(
-        colors: [neonPurple, mexicanPink.opacity(0.82), pastelPink.opacity(0.68)],
+    private static let frappeTrainerBackground = LinearGradient(
+        colors: [frappeMantle, frappeBase, frappeSurface0],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
-    private static let vividTrainerSurface = LinearGradient(
-        colors: [mintGreen.opacity(0.28), pastelPink.opacity(0.30), pumpkinOrange.opacity(0.22)],
+    private static let frappeTrainerSurface = LinearGradient(
+        colors: [frappeBlue.opacity(0.22), frappeMauve.opacity(0.24), frappeTeal.opacity(0.18)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
 
-    static let homeBackground = neonBackground
-    static let homeSurface = neonSurface
-    static let homeStreakSurface = vividWarmSurface
-    static let homeGoalSurface = vividSoftSurface
+    static let homeBackground = frappeBackground
+    static let homeSurface = frappeSurface
+    static let homeStreakSurface = frappeWarmSurface
+    static let homeGoalSurface = frappeSoftSurface
     static let homeMascotSurface = LinearGradient(
-        colors: [pastelPink.opacity(0.38), mexicanPink.opacity(0.24)],
+        colors: [frappeLavender.opacity(0.30), frappePink.opacity(0.20)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
-    static let homeAgendaSurface = vividAgendaSurface
-    static let agendaFrameStroke = mexicanPink.opacity(0.40)
-    static let homeBubbleAssistant = pumpkinOrange.opacity(0.24)
-    static let homeBubbleUser = mexicanPink.opacity(0.20)
+    static let homeAgendaSurface = frappeAgendaSurface
+    static let agendaFrameStroke = frappeSurface2.opacity(0.55)
+    static let homeBubbleAssistant = frappeTeal.opacity(0.24)
+    static let homeBubbleUser = frappeMauve.opacity(0.22)
 
     static let activityBackground = homeBackground
     static let activitySurface = homeSurface
     static let pomodoroSurface = LinearGradient(
-        colors: [Color(hex: 0x5E22CF), Color(hex: 0xA10063)],
+        colors: [frappeMantle, frappeSurface0],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
-    static let activityBubbleAssistant = mintGreen.opacity(0.30)
-    static let activityBubbleUser = mexicanPink.opacity(0.24)
-    static let buttonPrimary = neonPurple
-    static let buttonSecondary = pumpkinOrange
-    static let buttonTertiary = mexicanPink
+    static let activityBubbleAssistant = frappeTeal.opacity(0.26)
+    static let activityBubbleUser = frappeMauve.opacity(0.24)
+    static let buttonPrimary = frappeBlue
+    static let buttonSecondary = frappePeach
+    static let buttonTertiary = frappeMauve
 
-    static let agendaBackground = neonBackground
-    static let agendaSurface = neonSurface
+    static let agendaBackground = frappeBackground
+    static let agendaSurface = frappeSurface
 
-    static let trainerBackground = vividTrainerBackground
-    static let trainerSurface = vividTrainerSurface
+    static let trainerBackground = frappeTrainerBackground
+    static let trainerSurface = frappeTrainerSurface
 
-    static let settingsBackground = neonBackground
+    static let settingsBackground = frappeBackground
+
+    static let accentInfo = frappeBlue
+    static let accentSuccess = frappeGreen
+    static let accentWarning = frappeYellow
+    static let accentDanger = frappeRed
+    static let accentFocus = frappePeach
+    static let accentLink = frappeText
+    static let accentMuted = frappeSurface2.opacity(0.85)
 }
 
 private enum AppTypography {
@@ -623,15 +643,15 @@ public struct HomeView: View {
     private func statusColor(for status: ActivityStatus) -> Color {
         switch status {
         case .completed:
-            return .green
+            return ScreenPalette.accentSuccess
         case .pending:
-            return .yellow
+            return ScreenPalette.accentWarning
         case .notStarted:
-            return .gray.opacity(0.8)
+            return ScreenPalette.accentMuted
         case .failed:
-            return .red
+            return ScreenPalette.accentDanger
         case .inProgress:
-            return .blue
+            return ScreenPalette.accentInfo
         }
     }
 }
@@ -732,7 +752,7 @@ private struct PersonalChatbotView: View {
             options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .full)
         ) {
             Text(markdown)
-                .tint(.blue)
+                .tint(ScreenPalette.accentLink)
         } else {
             Text(text)
         }
@@ -1041,8 +1061,12 @@ private struct ActivityLaunchPlaceholderView: View {
                     .font(.caption.weight(.semibold))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(isWorkPhase ? Color.blue.opacity(0.2) : Color.green.opacity(0.2))
-                    .foregroundStyle(isWorkPhase ? .blue : .green)
+                    .background(
+                        isWorkPhase
+                            ? ScreenPalette.accentInfo.opacity(0.2)
+                            : ScreenPalette.accentSuccess.opacity(0.2)
+                    )
+                    .foregroundStyle(isWorkPhase ? ScreenPalette.accentInfo : ScreenPalette.accentSuccess)
                     .clipShape(Capsule())
             }
 
@@ -1064,7 +1088,7 @@ private struct ActivityLaunchPlaceholderView: View {
             if let wellbeingMessage {
                 Text(wellbeingMessage)
                     .font(.caption)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(ScreenPalette.accentFocus)
             }
 
             HStack(spacing: 10) {
@@ -1091,7 +1115,7 @@ private struct ActivityLaunchPlaceholderView: View {
                     isRunning = true
                 }
                 .buttonStyle(.bordered)
-                .tint(.orange)
+                .tint(ScreenPalette.accentFocus)
                 #endif
             }
         }
@@ -1183,7 +1207,7 @@ private struct ActivityLaunchPlaceholderView: View {
             options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .full)
         ) {
             Text(markdown)
-                .tint(.blue)
+                .tint(ScreenPalette.accentLink)
         } else {
             Text(text)
         }
@@ -1809,15 +1833,15 @@ private struct WeeklyAgendaView: View {
     private func statusColor(for status: ActivityStatus) -> Color {
         switch status {
         case .completed:
-            return .green
+            return ScreenPalette.accentSuccess
         case .pending:
-            return .yellow
+            return ScreenPalette.accentWarning
         case .notStarted:
-            return .gray.opacity(0.8)
+            return ScreenPalette.accentMuted
         case .failed:
-            return .red
+            return ScreenPalette.accentDanger
         case .inProgress:
-            return .blue
+            return ScreenPalette.accentInfo
         }
     }
 
@@ -2170,15 +2194,15 @@ public struct AgendaView: View {
     private func statusColor(for status: ActivityStatus) -> Color {
         switch status {
         case .notStarted:
-            .gray.opacity(0.8)
+            ScreenPalette.accentMuted
         case .pending:
-            .yellow
+            ScreenPalette.accentWarning
         case .inProgress:
-            .blue
+            ScreenPalette.accentInfo
         case .completed:
-            .green
+            ScreenPalette.accentSuccess
         case .failed:
-            .red
+            ScreenPalette.accentDanger
         }
     }
 }
@@ -2223,7 +2247,7 @@ public struct PomodoroTimerView: View {
             if didFinish {
                 Text("Tiempo completado")
                     .font(.caption)
-                    .foregroundStyle(.green)
+                    .foregroundStyle(ScreenPalette.accentSuccess)
             }
             HStack(spacing: 10) {
                 Button(isRunning ? "Pausar" : "Iniciar") {
@@ -2339,7 +2363,7 @@ public struct MentalTrainerView: View {
                     if let errorMessage {
                         Text(errorMessage)
                             .font(.footnote)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(ScreenPalette.accentDanger)
                     }
 
                     if !hasStarted {
@@ -2377,7 +2401,7 @@ public struct MentalTrainerView: View {
                                 if questionDeadline != nil {
                                     Text("Tiempo restante: \(remainingSeconds)s")
                                         .font(.subheadline.monospacedDigit())
-                                        .foregroundStyle(remainingSeconds <= 3 ? .red : .secondary)
+                                        .foregroundStyle(remainingSeconds <= 3 ? ScreenPalette.accentDanger : .secondary)
                                 }
 
                                 ForEach(Array(currentQuestion.options.enumerated()), id: \.offset) { index, option in
@@ -2388,17 +2412,17 @@ public struct MentalTrainerView: View {
                                             Text(option)
                                                 .frame(maxWidth: .infinity, alignment: .leading)
                                             if questionAnswered {
-                                                if showCorrectAnswerIndicator {
-                                                    if index == correctOptionIndex {
-                                                        Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                                                    if showCorrectAnswerIndicator {
+                                                        if index == correctOptionIndex {
+                                                            Image(systemName: "checkmark.circle.fill").foregroundStyle(ScreenPalette.accentSuccess)
+                                                        } else if index == answeredOptionIndex {
+                                                            Image(systemName: "xmark.circle.fill").foregroundStyle(ScreenPalette.accentDanger)
+                                                        }
                                                     } else if index == answeredOptionIndex {
-                                                        Image(systemName: "xmark.circle.fill").foregroundStyle(.red)
+                                                        Image(systemName: "exclamationmark.circle.fill").foregroundStyle(ScreenPalette.accentWarning)
                                                     }
-                                                } else if index == answeredOptionIndex {
-                                                    Image(systemName: "exclamationmark.circle.fill").foregroundStyle(.yellow)
                                                 }
                                             }
-                                        }
                                     }
                                     .buttonStyle(.bordered)
                                     .tint(ScreenPalette.buttonSecondary)
@@ -2431,7 +2455,7 @@ public struct MentalTrainerView: View {
                             if sessionCompleted || isGameOver {
                                 Text(isGameOver ? "Game Over" : "Sesión finalizada")
                                     .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(isGameOver ? .red : .green)
+                                    .foregroundStyle(isGameOver ? ScreenPalette.accentDanger : ScreenPalette.accentSuccess)
                             }
                         }
                     }
@@ -2526,7 +2550,7 @@ public struct MentalTrainerView: View {
                 sessionCompleted = true
                 questionAnswered = true
                 feedbackMessage = "No se pudo continuar la trivia. Fin del intento."
-                feedbackColor = .red
+                feedbackColor = ScreenPalette.accentDanger
                 questionDeadline = nil
                 remainingSeconds = 0
             }
@@ -2547,13 +2571,13 @@ public struct MentalTrainerView: View {
 
             if feedback.isCorrect {
                 feedbackMessage = "¡Correcto!"
-                feedbackColor = .green
+                feedbackColor = ScreenPalette.accentSuccess
             } else if feedback.isGameOver {
                 feedbackMessage = "Respuesta incorrecta. Fin de la trivia."
-                feedbackColor = .red
+                feedbackColor = ScreenPalette.accentDanger
             } else {
                 feedbackMessage = "Respuesta incorrecta."
-                feedbackColor = .red
+                feedbackColor = ScreenPalette.accentDanger
             }
         }
 
@@ -2589,7 +2613,7 @@ public struct MentalTrainerView: View {
                 isLoading = false
                 if feedbackMessage == nil {
                     feedbackMessage = "Sesión finalizada."
-                    feedbackColor = .green
+                    feedbackColor = ScreenPalette.accentSuccess
                 }
             }
         }
@@ -2829,7 +2853,7 @@ private struct AppSettingsView: View {
                 if let timerSoundError {
                     Text(timerSoundError)
                         .font(.footnote)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(ScreenPalette.accentDanger)
                 }
             }
 
