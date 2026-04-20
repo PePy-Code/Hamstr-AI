@@ -757,7 +757,7 @@ private struct AppLaunchLoadingView: View {
         .accessibilityLabel(
             localizedText(
                 es: "Cargando aplicación, espere un momento",
-                en: "Application loading, please wait"
+                en: "Loading application, please wait"
             )
         )
     }
