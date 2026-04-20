@@ -857,7 +857,7 @@ struct OpenSourceKnowledgeServiceNetworkTests {
 
     @Test("OpenSourceKnowledgeService limita historial y salida para controlar consumo de tokens")
     func openSourceKnowledgeServiceLimitsHistoryAndOutputTokensInGroqPayload() async throws {
-        let oversizedHistoryMessageRepeatCount = 80 // Fuerza mensajes > 320 chars para validar truncado.
+        let historyMessageRepeatCount = 80 // Fuerza mensajes > 320 chars para validar truncado.
         let session = makeMockedSession()
         var capturedMaxTokens: Int?
         var capturedMessagesCount: Int?
@@ -917,7 +917,7 @@ struct OpenSourceKnowledgeServiceNetworkTests {
         let history = (0..<9).map { index in
             ConversationTurn(
                 role: index.isMultiple(of: 2) ? .user : .assistant,
-                content: "Mensaje \(index): " + String(repeating: "detalle ", count: oversizedHistoryMessageRepeatCount)
+                content: "Mensaje \(index): " + String(repeating: "detalle ", count: historyMessageRepeatCount)
             )
         }
         let service = OpenSourceKnowledgeService(session: session, groqAPIKey: "test-key")
@@ -933,7 +933,7 @@ struct OpenSourceKnowledgeServiceNetworkTests {
 
     @Test("OpenSourceKnowledgeService trunca y limpia la consulta del usuario en el payload")
     func openSourceKnowledgeServiceTruncatesAndCleansUserQueryInGroqPayload() async throws {
-        let oversizedUserQueryRepeatCount = 90 // Fuerza consulta > 700 chars para validar truncado.
+        let userQueryRepeatCount = 90 // Fuerza consulta > 700 chars para validar truncado.
         let session = makeMockedSession()
         var capturedUserMessage: String?
         let stateQueue = DispatchQueue(label: "test.groq.request.tokenBudget.userQuery")
@@ -983,7 +983,7 @@ struct OpenSourceKnowledgeServiceNetworkTests {
         }
         defer { MockURLProtocol.setRequestHandler(nil) }
 
-        let longQuery = "   " + String(repeating: "detalle-consulta ", count: oversizedUserQueryRepeatCount) + "   "
+        let longQuery = "   " + String(repeating: "detalle-consulta ", count: userQueryRepeatCount) + "   "
         let service = OpenSourceKnowledgeService(session: session, groqAPIKey: "test-key")
         _ = await service.answer(for: longQuery, history: [])
 
