@@ -473,7 +473,7 @@ public struct HomeView: View {
             } catch is CancellationError {
                 return
             } catch {
-                assertionFailure("Unexpected launch delay error: \(error)")
+                assertionFailure("Unexpected non-cancellation error while waiting launch delay: \(error)")
                 return
             }
             guard !Task.isCancelled else { return }
@@ -790,7 +790,11 @@ private struct AppLaunchLoadingView: View {
         )
 
         #if canImport(UIKit)
-        if let resourceURL, let image = UIImage(contentsOfFile: resourceURL.path) {
+        if
+            let resourceURL,
+            let imageData = try? Data(contentsOf: resourceURL),
+            let image = UIImage(data: imageData)
+        {
             return Image(uiImage: image)
         }
         if let image = UIImage(
@@ -804,7 +808,11 @@ private struct AppLaunchLoadingView: View {
             return Image(uiImage: image)
         }
         #elseif canImport(AppKit)
-        if let resourceURL, let image = NSImage(contentsOf: resourceURL) {
+        if
+            let resourceURL,
+            let imageData = try? Data(contentsOf: resourceURL),
+            let image = NSImage(data: imageData)
+        {
             return Image(nsImage: image)
         }
         if let image = Bundle.module.image(forResource: NSImage.Name(Self.hamletImageName)) {
