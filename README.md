@@ -110,6 +110,16 @@ swift test
 4. Agrega el producto `AI---AT---Swift-PRELIMINAR-` al target de la app.
 5. Importa el módulo `AI___AT___Swift_PRELIMINAR_` en tu app.
 
+## App icon (implementado desde UIDesignConcept)
+
+- Fuente original: `UIDesignConcept/hamlet.jpg`
+- Set listo para Xcode: `UIDesignConcept/AppIcon.appiconset`
+
+Para aplicarlo en tu app iOS:
+1. Abre `Assets.xcassets` de tu proyecto de app.
+2. Reemplaza el contenido de `AppIcon` con los archivos de `UIDesignConcept/AppIcon.appiconset`.
+3. Asegúrate de conservar `Contents.json` del set.
+
 ## Seguridad
 
 - Nunca hardcodees claves reales en commits.
