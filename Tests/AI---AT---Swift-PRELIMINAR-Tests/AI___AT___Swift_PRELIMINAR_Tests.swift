@@ -459,6 +459,12 @@ func appPreferencesQuietHoursAcrossMidnight() async throws {
     #expect(AppPreferences.isWithinQuietHours(date: dayDate, calendar: calendar) == false)
 }
 
+@Test("Recurso Hamlet de pantalla de inicio existe en el bundle del paquete")
+func launchHamletImageResourceExistsInBundle() async throws {
+    let resourceURL = Bundle.module.url(forResource: "Hamlet", withExtension: "png")
+    #expect(resourceURL != nil)
+}
+
 @Test("Parser local extrae material con fuentes desde JSON")
 func localAgentParserReadsSupportMaterialWithSources() async throws {
     let response = """

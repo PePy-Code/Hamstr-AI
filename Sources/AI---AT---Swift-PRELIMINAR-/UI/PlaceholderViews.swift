@@ -468,7 +468,11 @@ public struct HomeView: View {
         .appTypography()
         .environment(\.dynamicTypeSize, preferredDynamicTypeSize)
         .task {
-            try? await Task.sleep(for: Self.launchDuration)
+            do {
+                try await Task.sleep(for: Self.launchDuration)
+            } catch {
+                return
+            }
             guard !Task.isCancelled else { return }
             withAnimation(.easeOut(duration: 0.2)) {
                 isShowingLaunchScreen = false
