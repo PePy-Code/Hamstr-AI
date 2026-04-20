@@ -139,21 +139,13 @@ private enum ScreenPalette {
     static let homeBubbleAssistant = pumpkinOrange.opacity(0.24)
     static let homeBubbleUser = mexicanPink.opacity(0.20)
 
-    static let activityBackground = LinearGradient(
-        colors: [neonPurple, mexicanPink.opacity(0.84), pumpkinOrange.opacity(0.72)],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
-    static let activitySurface = LinearGradient(
-        colors: [pastelPink.opacity(0.34), mintGreen.opacity(0.30), pumpkinOrange.opacity(0.24)],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
+    static let activityBackground = homeBackground
+    static let activitySurface = homeSurface
     static let activityBubbleAssistant = mintGreen.opacity(0.30)
     static let activityBubbleUser = mexicanPink.opacity(0.24)
-    static let buttonPrimary = pumpkinOrange
-    static let buttonSecondary = mexicanPink
-    static let buttonTertiary = mintGreen
+    static let buttonPrimary = neonPurple
+    static let buttonSecondary = pumpkinOrange
+    static let buttonTertiary = mexicanPink
 
     static let agendaBackground = neonBackground
     static let agendaSurface = neonSurface
@@ -876,36 +868,40 @@ private struct ActivityLaunchPlaceholderView: View {
         ZStack {
             ScreenPalette.activityBackground.ignoresSafeArea()
 
-            ScrollView {
-                VStack(spacing: 12) {
-                    HStack(spacing: 10) {
-                        Button("Finalizar") {
-                            finishAlertStep = .confirmFinish
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(ScreenPalette.buttonPrimary)
-
-                        Button("Pendiente") {
-                            Task { await markPendingAndExit() }
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(ScreenPalette.buttonSecondary)
+            VStack(spacing: 12) {
+                HStack(spacing: 10) {
+                    Button("Finalizar") {
+                        finishAlertStep = .confirmFinish
                     }
+                    .buttonStyle(.borderedProminent)
+                    .tint(ScreenPalette.buttonPrimary)
 
-                    pomodoroCard
-                        .alert(item: $pomodoroTransitionAlert) { alert in
-                            Alert(
-                                title: Text("Pomodoro"),
-                                message: Text(alert.message),
-                                dismissButton: .default(Text("OK"))
-                            )
-                        }
-                    chatSection
-                    chatComposer
+                    Button("Pendiente") {
+                        Task { await markPendingAndExit() }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(ScreenPalette.buttonSecondary)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding()
+
+                pomodoroCard
+                    .alert(item: $pomodoroTransitionAlert) { alert in
+                        Alert(
+                            title: Text("Pomodoro"),
+                            message: Text(alert.message),
+                            dismissButton: .default(Text("OK"))
+                        )
+                    }
+                chatSection
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .padding([.top, .horizontal])
+        }
+        .safeAreaInset(edge: .bottom) {
+            chatComposer
+                .padding(.horizontal)
+                .padding(.top, 8)
+                .padding(.bottom, 10)
+                .background(ScreenPalette.activitySurface.ignoresSafeArea())
         }
         .navigationTitle("Iniciar actividad")
         .navigationBarBackButtonHidden(true)
@@ -1059,7 +1055,7 @@ private struct ActivityLaunchPlaceholderView: View {
                 Button(isRunning ? "Pausar" : "Iniciar") {
                     isRunning.toggle()
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.borderedProminent)
                 .tint(ScreenPalette.buttonPrimary)
 
                 Button("Reiniciar") {
@@ -1070,7 +1066,7 @@ private struct ActivityLaunchPlaceholderView: View {
                     elapsedWellbeingSeconds = 0
                     wellbeingMessage = nil
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.borderedProminent)
                 .tint(ScreenPalette.buttonSecondary)
 
                 #if DEBUG
@@ -1108,7 +1104,7 @@ private struct ActivityLaunchPlaceholderView: View {
                     }
                 }
             }
-            .frame(maxHeight: 260)
+            .frame(maxHeight: .infinity)
         }
     }
 
