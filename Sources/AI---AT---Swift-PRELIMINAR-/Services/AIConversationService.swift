@@ -449,7 +449,7 @@ private extension AIConversationService {
         if streakDays >= 7 {
             let celebration = [
                 "🔥 \(streakDays) días seguidos, ¡eso no es casualidad! Hamlet Hamster te mira con orgullo.",
-                "🏆 \(streakDays) días de racha. Los hámsters no aplaudimos, pero si pudiéramos...",
+                "🏆 \(streakDays) días de racha. Los hámsteres no aplaudimos, pero si pudiéramos...",
                 "⚡ \(streakDays) días y contando. ¡Deja que el Trainer añada otro escalón hoy!",
                 "🌟 \(streakDays) días. Hamlet Hamster dice: la constancia construye castillos de conocimiento."
             ]
